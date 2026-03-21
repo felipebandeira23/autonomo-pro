@@ -1,7 +1,13 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
+import { getDerivedTenantMetrics, useAppState } from '@/lib/app-state';
 
 export default function Sidebar() {
+  const appState = useAppState();
+  const metrics = getDerivedTenantMetrics(appState);
+
   return (
     <aside style={{
       width: '260px',
@@ -66,6 +72,24 @@ export default function Sidebar() {
           borderRadius: '8px', color: 'var(--text-sidebar)', fontWeight: 500, transition: 'background 0.2s'
         }}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>🏢</span> Unidades Gestoras
+          {metrics.totalCriticalAlerts > 0 && (
+            <span style={{
+              marginLeft: 'auto',
+              minWidth: '24px',
+              height: '24px',
+              padding: '0 8px',
+              borderRadius: '999px',
+              background: 'rgba(239, 68, 68, 0.18)',
+              color: '#fecaca',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}>
+              {metrics.totalCriticalAlerts}
+            </span>
+          )}
         </Link>
       </nav>
       
