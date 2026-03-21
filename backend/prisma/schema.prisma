@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  document  String   @unique // CNPJ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  professionals Professional[]
+  taxConfigs    TaxConfig[]
+  payments      Payment[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String?  // nullable if using Keycloak/LDAP exclusively
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Professional {
+  id             String   @id @default(uuid())
+  name           String
+  document       String   @unique // CPF
+  email          String?
+  city           String?
+  numDependents  Int      @default(0)
+  
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  payments       Payment[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model TaxConfig {
+  id             String   @id @default(uuid())
+  year           Int
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+
+  // INSS settings
+  inssRate       Decimal  @db.Decimal(5, 4) // e.g. 0.1100 for 11%
+  inssCeiling    Decimal  @db.Decimal(10, 2) // e.g. 932.32
+  
+  // Dependent deduction
+  dependentDeduction Decimal @db.Decimal(10, 2) // e.g. 189.59
+  
+  // IRRF settings (using JSONB for flexibility across multiple rules)
+  irrfBrackets   Json     // Array of { min: number, max: number, rate: number, deduction: number }
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  payments       Payment[]
+  
+  @@unique([tenantId, year])
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  competence     String   // e.g. "02/2026"
+  paymentDate    DateTime
+
+  grossValue     Decimal  @db.Decimal(10, 2)
+  inssValue      Decimal  @db.Decimal(10, 2)
+  irrfValue      Decimal  @db.Decimal(10, 2)
+  netValue       Decimal  @db.Decimal(10, 2)
+
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+
+  taxConfigId    String
+  taxConfig      TaxConfig    @relation(fields: [taxConfigId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
