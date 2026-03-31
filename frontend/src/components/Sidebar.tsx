@@ -9,17 +9,7 @@ export default function Sidebar() {
   const metrics = getDerivedTenantMetrics(appState);
 
   return (
-    <aside style={{
-      width: '260px',
-      backgroundColor: 'var(--bg-sidebar)',
-      color: 'var(--text-sidebar)',
-      display: 'flex',
-      flexDirection: 'column',
-      borderRight: '1px solid var(--border-dark)',
-      position: 'sticky',
-      top: 0,
-      height: '100vh',
-    }}>
+    <aside className="sidebar-shell">
       <div style={{ 
         height: '64px', 
         display: 'flex', 
@@ -40,37 +30,21 @@ export default function Sidebar() {
       <nav style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
         <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: '8px', paddingLeft: '8px' }}>Dashboard</div>
         
-        <Link href="/" style={{
-          display: 'flex', alignItems: 'center', padding: '10px 12px', 
-          borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.08)',
-          color: 'var(--text-sidebar-active)', fontWeight: 500
-        }}>
+        <Link href="/" className="sidebar-link sidebar-link-active">
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>📊</span> Indicadores
         </Link>
-        <Link href="/autonomos" style={{
-          display: 'flex', alignItems: 'center', padding: '10px 12px', 
-          borderRadius: '8px', color: 'var(--text-sidebar)', fontWeight: 500, transition: 'background 0.2s'
-        }}>
+        <Link href="/autonomos" className="sidebar-link">
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>🧑‍🏫</span> Autônomos
         </Link>
-        <Link href="/pagamentos" style={{
-          display: 'flex', alignItems: 'center', padding: '10px 12px', 
-          borderRadius: '8px', color: 'var(--text-sidebar)', fontWeight: 500, transition: 'background 0.2s'
-        }}>
+        <Link href="/pagamentos" className="sidebar-link">
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>💸</span> Pagamentos
         </Link>
 
         <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: '8px', marginTop: '32px', paddingLeft: '8px' }}>Gestão</div>
-        <Link href="/configuracoes" style={{
-          display: 'flex', alignItems: 'center', padding: '10px 12px', 
-          borderRadius: '8px', color: 'var(--text-sidebar)', fontWeight: 500, transition: 'background 0.2s'
-        }}>
+        <Link href="/configuracoes" className="sidebar-link">
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>⚙️</span> Engenharia Tributária
         </Link>
-        <Link href="/tenants" style={{
-          display: 'flex', alignItems: 'center', padding: '10px 12px', 
-          borderRadius: '8px', color: 'var(--text-sidebar)', fontWeight: 500, transition: 'background 0.2s'
-        }}>
+        <Link href="/tenants" className="sidebar-link">
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>🏢</span> Unidades Gestoras
           {metrics.totalCriticalAlerts > 0 && (
             <span style={{

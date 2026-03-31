@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { updatePaymentStatus, useAppState, getEffectivePayment } from '@/lib/app-state';
+import { updatePaymentStatus, useAppState, getEffectivePayment, addToast } from '@/lib/app-state';
 import type { PaymentRecord, PaymentStatus } from '@/lib/mock-data';
 import { getPaymentStatusMeta } from '@/lib/mock-data';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
@@ -15,7 +15,6 @@ export default function PagamentoDetalheClient({
   const appState = useAppState();
   const effectivePayment = getEffectivePayment(payment, appState);
   const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState('');
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -29,14 +28,26 @@ export default function PagamentoDetalheClient({
   const docStatus: PaymentStatus = effectivePayment.statusId;
   const statusMeta = useMemo(() => getPaymentStatusMeta(docStatus), [docStatus]);
   const pendingCalculations = docStatus === 'elaboracao';
+  
+  const paymentLogs = useMemo(() => {
+    return appState.auditLogs.filter(log => log.targetId === effectivePayment.ident);
+  }, [appState.auditLogs, effectivePayment.ident]);
 
   const openApproveModal = () => {
+    if (appState.role === 'auditoria') {
+      addToast('Acesso negado: Perfil Auditoria possui apenas leitura.', 'error');
+      return;
+    }
     setFormError('');
     setIsRejectModalOpen(false);
     setIsApproveModalOpen(true);
   };
 
   const openRejectModal = () => {
+    if (appState.role === 'auditoria') {
+      addToast('Acesso negado: Perfil Auditoria possui apenas leitura.', 'error');
+      return;
+    }
     setFormError('');
     setRejectReason('');
     setIsApproveModalOpen(false);
@@ -46,6 +57,7 @@ export default function PagamentoDetalheClient({
   const confirmApproval = () => {
     updatePaymentStatus(effectivePayment.ident.replace('#', ''), 'pago');
     setIsApproveModalOpen(false);
+    addToast('Lançamento aprovado com sucesso!', 'success');
   };
 
   const confirmRejection = (event: React.FormEvent<HTMLFormElement>) => {
@@ -60,36 +72,18 @@ export default function PagamentoDetalheClient({
     setIsRejectModalOpen(false);
     setRejectReason('');
     setFormError('');
+    addToast('Lançamento rejeitado e movido para ajuste.', 'info');
   };
 
   const handleCopyUniversalId = async () => {
     await navigator.clipboard.writeText(effectivePayment.realid);
     setCopied(true);
-    setToast('UUID copiado para area de transferencia.');
+    addToast('UUID copiado para area de transferencia.', 'success');
     window.setTimeout(() => setCopied(false), 2000);
-    window.setTimeout(() => setToast(''), 2500);
   };
 
   return (
     <div className="animate-fade-in relative">
-      {toast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: 'var(--success)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            fontWeight: 600,
-            boxShadow: 'var(--shadow-md)',
-            zIndex: 9999,
-          }}
-        >
-          {toast}
-        </div>
-      )}
 
       {isApproveModalOpen && (
         <div
@@ -675,6 +669,33 @@ export default function PagamentoDetalheClient({
                   {docStatus === 'pago' ? 'Liquidado imediatamente (API Bank Mock).' : '-- pendente aprovacao --'}
                 </div>
               </div>
+              
+              {paymentLogs.length > 0 && (
+                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px dashed var(--border-light)' }}>
+                  {paymentLogs.map(log => (
+                    <div key={log.id} style={{ position: 'relative', marginBottom: '24px' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '-31px',
+                          top: '0',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: 'var(--text-main)',
+                          border: '2px solid white',
+                        }}
+                      />
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {log.action} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>({log.userRole.toUpperCase()})</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {new Date(log.timestamp).toLocaleString('pt-BR')} - {log.details}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

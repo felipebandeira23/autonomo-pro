@@ -9,6 +9,18 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ProfessionalStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PaymentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PAID
+  REJECTED
+}
+
 model Tenant {
   id        String   @id @default(uuid())
   name      String
@@ -40,6 +52,7 @@ model Professional {
   email          String?
   city           String?
   numDependents  Int      @default(0)
+  status         ProfessionalStatus @default(ACTIVE)
   
   tenantId       String
   tenant         Tenant   @relation(fields: [tenantId], references: [id])
@@ -75,6 +88,7 @@ model TaxConfig {
 
 model Payment {
   id             String   @id @default(uuid())
+  code           String   @unique
   competence     String   // e.g. "02/2026"
   paymentDate    DateTime
 
@@ -82,6 +96,8 @@ model Payment {
   inssValue      Decimal  @db.Decimal(10, 2)
   irrfValue      Decimal  @db.Decimal(10, 2)
   netValue       Decimal  @db.Decimal(10, 2)
+  status         PaymentStatus @default(DRAFT)
+  convenio       String?
 
   professionalId String
   professional   Professional @relation(fields: [professionalId], references: [id])

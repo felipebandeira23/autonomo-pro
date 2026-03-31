@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Sidebar from '../components/Sidebar';
-import TopBar from '../components/TopBar';
+import ClientLayout from './ClientLayout';
 
 export const metadata: Metadata = {
   title: 'AutônomoPro - Painel Corporativo',
@@ -16,15 +15,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <div className="layout-container">
-          <Sidebar />
-          <div className="main-content">
-            <TopBar />
-            <main className="page-container animate-fade-in">
-              {children}
-            </main>
-          </div>
-        </div>
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   );

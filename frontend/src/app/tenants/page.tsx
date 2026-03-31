@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import React, { useState } from 'react';
-import { getDerivedTenantMetrics, useAppState } from '@/lib/app-state';
-import { tenantSummaries } from '@/lib/mock-data';
+import { getDerivedTenantMetrics, useAppState, createTenant, updateTenant, addToast } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 
 type ModalType = 'global' | 'create' | null;
@@ -11,17 +10,15 @@ type ModalType = 'global' | 'create' | null;
 export default function Tenants() {
   const appState = useAppState();
   const metrics = getDerivedTenantMetrics(appState);
-  const tenants = [tenantSummaries.ufrj, tenantSummaries.coppetec];
+  const tenants = Object.values(appState.tenants).filter((t: any) => t.id !== 'corp');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [toast, setToast] = useState('');
   const [formData, setFormData] = useState({ nome: '', cnpj: '' });
   const [formError, setFormError] = useState('');
   useEscapeToClose(Boolean(modalType), () => setModalType(null));
 
   const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(''), 3000);
+    addToast(message, 'info');
   };
 
   const handleCreateTenant = (event: React.FormEvent<HTMLFormElement>) => {
@@ -32,10 +29,13 @@ export default function Tenants() {
       return;
     }
 
+    const newId = formData.nome.toLowerCase().replace(/[^a-z0-9]/g, '');
+    createTenant(newId, formData.nome, formData.cnpj);
+    
     setModalType(null);
     setFormData({ nome: '', cnpj: '' });
     setFormError('');
-    showToast('Formulario de instituicao salvo no mock.');
+    addToast('Instituição cadastrada com sucesso.', 'success');
   };
 
   return (
@@ -68,7 +68,7 @@ export default function Tenants() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                {modalType === 'global' ? 'Consolidado Global' : 'Fundar Instituicao'}
+                {modalType === 'global' ? 'Consolidado Global' : 'Fundar Instituição'}
               </h3>
               <button
                 onClick={() => setModalType(null)}
@@ -182,7 +182,7 @@ export default function Tenants() {
                       cursor: 'pointer',
                     }}
                   >
-                    Salvar instituicao
+                    Salvar instituição
                   </button>
                 </div>
               </form>
@@ -191,33 +191,14 @@ export default function Tenants() {
         </div>
       )}
 
-      {toast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: 'var(--success)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            fontWeight: 600,
-            boxShadow: 'var(--shadow-md)',
-            zIndex: 9999,
-          }}
-        >
-          {toast}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+      <div className="page-header">
         <div>
           <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Unidades Gestoras Corporativas</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Arquitetura multi-tenant isolada: gerencie as diferentes entidades arrecadadoras e fundacoes.
+            Arquitetura multi-tenant isolada: gerencie as diferentes entidades arrecadadoras e fundações.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div className="page-header-actions">
           <button
             onClick={() => setModalType('global')}
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-main)', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
@@ -228,13 +209,19 @@ export default function Tenants() {
             onClick={() => setModalType('create')}
             style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', color: 'white', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: 'none' }}
           >
-            <span>+</span> Fundar Instituicao
+            <span>+</span> Fundar Instituição
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '24px' }}>
-        {tenants.map((tenant) => (
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' }}>
+        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+          Mostrando {tenants.length} unidade(s) gestora(s) ativas
+        </div>
+      </div>
+
+      <div className="tenant-grid">
+        {tenants.map((tenant: any) => (
           <div key={tenant.id} className="glass-card" style={{ position: 'relative', overflow: 'hidden', padding: 0, transition: 'all 0.2s' }}>
             <div
               style={{
@@ -274,20 +261,21 @@ export default function Tenants() {
                       <button
                         onClick={() => {
                           setOpenMenu(null);
-                          showToast(`Edicao de ${tenant.label} em desenvolvimento.`);
+                          addToast(`Edicao de ${tenant.label} requer painel avançado (em desenvolvimento).`, 'info');
                         }}
                         style={{ width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer' }}
                       >
-                        Editar
+                        Editar Parâmetros
                       </button>
                       <button
                         onClick={() => {
                           setOpenMenu(null);
-                          showToast(`${tenant.label} marcada como inativa no mock.`);
+                          updateTenant(tenant.id, { status: 'Atrasado' as any });
+                          addToast(`${tenant.label} inativada / suspensa com sucesso.`, 'success');
                         }}
                         style={{ width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)' }}
                       >
-                        Desativar
+                        Desativar Instituição
                       </button>
                     </div>
                   )}
@@ -323,7 +311,7 @@ export default function Tenants() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '24px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+              <div className="tenant-card-footer">
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Usuarios</div>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem' }}>{tenant.usuarios}</div>
@@ -332,8 +320,8 @@ export default function Tenants() {
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Base Ativos</div>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1.1rem' }}>{tenant.baseAtivos}</div>
                 </div>
-                <div style={{ marginLeft: 'auto' }}>
-                  <Link href={`/?tenant=${tenant.id}`} style={{ background: 'var(--primary)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
+                <div className="tenant-card-footer-action">
+                  <Link href={`/?tenant=${tenant.id}`} className="workspace-button" style={{ background: 'var(--primary)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
                     Acessar Workspace
                   </Link>
                 </div>
@@ -349,7 +337,7 @@ export default function Tenants() {
           style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '280px', border: '2px dashed var(--border-light)', cursor: 'pointer', background: 'transparent' }}
         >
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', marginBottom: '16px' }}>+</div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)' }}>Cadastrar Instituicao</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)' }}>Cadastrar Instituição</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center', maxWidth: '80%', marginTop: '8px' }}>
             Crie um ambiente isolado para o novo convenio.
           </p>

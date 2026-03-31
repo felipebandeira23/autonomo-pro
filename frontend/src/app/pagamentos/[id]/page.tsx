@@ -8,6 +8,7 @@ export default async function PagamentoDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  console.log("ID:", id);
   const payment = getPaymentByCode(id);
 
   if (!payment) {

@@ -1,21 +1,18 @@
 "use client";
 
-import React, { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { Suspense, useState, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getDerivedTenantMetrics, getEffectivePayments, useAppState } from '@/lib/app-state';
-import { tenantSummaries, type TenantKey } from '@/lib/mock-data';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 
 function DashboardContent() {
   const appState = useAppState();
-  const effectivePayments = getEffectivePayments(appState);
+  const effectivePayments = useMemo(() => getEffectivePayments(appState, true), [appState]);
   const metrics = getDerivedTenantMetrics(appState);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tenantParam = (searchParams.get('tenant') as TenantKey | null) || 'corp';
-  const tenant = tenantSummaries[tenantParam] ? tenantParam : 'corp';
-  const data = tenantSummaries[tenant];
 
+  const tenant = appState.activeTenant;
   const [modalContent, setModalContent] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [toast, setToast] = useState('');
@@ -274,9 +271,9 @@ function DashboardContent() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
           <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
-            Visao Executiva {tenant !== 'corp' ? `- ${tenant.toUpperCase()}` : ''}
+            Visão Executiva {tenant !== 'corp' ? `- ${tenant.toUpperCase()}` : ''}
           </h2>
-          <p style={{ color: 'var(--text-muted)' }}>Resumo das retencoes consolidadas no periodo.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Resumo das retenções consolidadas no período.</p>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <select
@@ -346,16 +343,16 @@ function DashboardContent() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '32px' }}>
         <div className="glass-card">
           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-            Autonomos Ativos
+            Autônomos Ativos
           </div>
-          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>{data.ativos}</div>
-          <div style={{ fontSize: '0.875rem', color: 'var(--success)', marginTop: '8px' }}>+12 neste mes</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>{metrics.totalAtivos}</div>
+          <div style={{ fontSize: '0.875rem', color: 'var(--success)', marginTop: '8px' }}>+0 neste mês</div>
         </div>
         <div className="glass-card">
           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
             Valor Bruto Repassado
           </div>
-          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--primary)', marginTop: '8px' }}>{data.repasses}</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--primary)', marginTop: '8px' }}>{metrics.totalRepassesStr}</div>
         </div>
         <div className="glass-card" style={{ position: 'relative' }}>
           <div
@@ -370,35 +367,14 @@ function DashboardContent() {
             }}
           >
             Impostos Retidos
-            <button
-              type="button"
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
-              onFocus={() => setShowTooltip(true)}
-              onBlur={() => setShowTooltip(false)}
-              style={{
-                position: 'relative',
-                display: 'inline-flex',
-                width: '16px',
-                height: '16px',
-                borderRadius: '50%',
-                background: 'var(--border-light)',
-                color: 'var(--text-muted)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.7rem',
-                cursor: 'help',
-                border: 'none',
-                padding: 0,
-              }}
-              aria-label="Explicacao de impostos retidos"
-            >
-              ?
-              {showTooltip && (
+          </div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--danger)', marginTop: '8px', cursor: 'help' }} onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)}>
+            {metrics.totalImpostosStr}
+            {showTooltip && (
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: '150%',
+                    top: '100%',
                     left: '50%',
                     transform: 'translateX(-50%)',
                     padding: '12px',
@@ -406,20 +382,19 @@ function DashboardContent() {
                     color: 'white',
                     fontSize: '0.75rem',
                     borderRadius: '8px',
-                    width: '220px',
+                    width: '240px',
                     zIndex: 10,
                     textAlign: 'left',
                     pointerEvents: 'none',
                     boxShadow: 'var(--shadow-md)',
                     lineHeight: '1.4',
+                    fontWeight: 400
                   }}
                 >
-                  Soma das retencoes de INSS e IRRF processadas antes da liquidacao final do repasse.
+                  Soma das retenções de INSS e IRRF processadas antes da liquidação final do repasse.
                 </div>
               )}
-            </button>
           </div>
-          <div style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--danger)', marginTop: '8px' }}>{data.retidos}</div>
         </div>
       </div>
 
@@ -434,13 +409,13 @@ function DashboardContent() {
               alignItems: 'center',
             }}
           >
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-main)' }}>Historico da Planilha Mestra</h3>
-            <button
-              onClick={() => router.push('/pagamentos')}
-              style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer' }}
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-main)' }}>Histórico da Planilha Mestra</h3>
+            <Link
+              href="/pagamentos"
+              style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', textDecoration: 'none' }}
             >
-              Ver Todos Lancamentos &rarr;
-            </button>
+              Ver Todos Lançamentos &rarr;
+            </Link>
           </div>
           <div style={{ padding: '0 24px 24px 24px', overflowX: 'auto', width: '100%' }}>
             <table style={{ minWidth: '600px', width: '100%', borderCollapse: 'collapse', textAlign: 'left', marginTop: '16px' }}>
@@ -453,7 +428,14 @@ function DashboardContent() {
                 </tr>
               </thead>
               <tbody>
-                {effectivePayments.slice(0, 2).map((payment) => (
+                {effectivePayments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Nenhum pagamento encontrado para esta unidade.
+                    </td>
+                  </tr>
+                ) : (
+                  effectivePayments.slice(0, 3).map((payment) => (
                   <tr key={payment.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '16px 0', fontWeight: 500, color: 'var(--text-main)' }}>{payment.nome}</td>
                     <td style={{ padding: '16px 0', color: 'var(--text-muted)' }}>13/02/2026</td>
@@ -469,42 +451,40 @@ function DashboardContent() {
                           fontWeight: 600,
                         }}
                       >
-                        {payment.statusId === 'pago' ? 'Sync Concluido' : 'Em Analise'}
+                        {payment.statusId === 'pago' ? 'Sync Concluído' : 'Em Análise'}
                       </span>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
           <div style={{ padding: '0 24px 16px 24px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Preview de 2 de {effectivePayments.length} registros.
+            Preview de {Math.min(3, effectivePayments.length)} de {effectivePayments.length} registros.
           </div>
         </div>
 
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-main)' }}>Rotinas Sistemicas</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '24px', color: 'var(--text-main)' }}>Rotinas Sistêmicas</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <button
-              onClick={() => setModalContent('Criar Ficha de Autonomo')}
+            <Link
+              href="/autonomos"
               style={{
                 background: 'var(--primary)',
                 color: 'white',
                 padding: '14px',
                 borderRadius: '8px',
                 fontWeight: 600,
-                textAlign: 'left',
+                textDecoration: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                border: 'none',
-                cursor: 'pointer',
               }}
             >
-              <span>➕</span> Criar Ficha de Autonomo
-            </button>
-            <button
-              onClick={() => setModalContent('Processamento em Lote')}
+              <span>➕</span> Criar Ficha de Autônomo
+            </Link>
+            <Link
+              href="/pagamentos"
               style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--primary)',
@@ -512,17 +492,16 @@ function DashboardContent() {
                 padding: '14px',
                 borderRadius: '8px',
                 fontWeight: 600,
-                textAlign: 'left',
+                textDecoration: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                cursor: 'pointer',
               }}
             >
               <span>📑</span> Processamento em Lote (Excel)
-            </button>
-            <button
-              onClick={() => router.push('/configuracoes')}
+            </Link>
+            <Link
+              href="/configuracoes"
               style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-light)',
@@ -530,16 +509,15 @@ function DashboardContent() {
                 padding: '14px',
                 borderRadius: '8px',
                 fontWeight: 600,
-                textAlign: 'left',
+                textDecoration: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 marginTop: '16px',
-                cursor: 'pointer',
               }}
             >
               <span>⚙️</span> Editar Tabela da SRF
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -549,7 +527,7 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <Suspense fallback={<div>Carregando Visualizacao Corporativa...</div>}>
+    <Suspense fallback={<div>Carregando Visualização Corporativa...</div>}>
       <DashboardContent />
     </Suspense>
   );

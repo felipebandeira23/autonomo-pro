@@ -5,19 +5,21 @@ import React, { useRef, useState } from 'react';
 import { getEffectivePayments, useAppState } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { getPaymentStatusMeta } from '@/lib/mock-data';
+import { addToast } from '@/lib/app-state';
 
 const tabs = [
-  { id: 'todos', label: 'Todos Lancamentos' },
-  { id: 'elaboracao', label: 'Em Elaboracao' },
-  { id: 'aprovacao', label: 'Em Aprovacao' },
+  { id: 'todos', label: 'Todos Lançamentos' },
+  { id: 'elaboracao', label: 'Em Elaboração' },
+  { id: 'aprovacao', label: 'Em Aprovação' },
   { id: 'pagos', label: 'Pagos / Liberados' },
 ] as const;
 
 export default function Pagamentos() {
   const appState = useAppState();
-  const effectivePayments = getEffectivePayments(appState);
+  const effectivePayments = getEffectivePayments(appState, true);
   const [tab, setTab] = useState<(typeof tabs)[number]['id']>('todos');
   const [search, setSearch] = useState('');
+  const [tenantFilter, setTenantFilter] = useState('todas');
   const [isSearching, setIsSearching] = useState(false);
   const [modalContent, setModalContent] = useState<string | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,6 +42,10 @@ export default function Pagamentos() {
       return false;
     }
 
+    if (tenantFilter !== 'todas' && payment.tenantId !== tenantFilter) {
+      return false;
+    }
+
     if (tab === 'elaboracao') {
       return payment.statusId === 'elaboracao';
     }
@@ -57,6 +63,33 @@ export default function Pagamentos() {
 
   const countElaboracao = effectivePayments.filter((payment) => payment.statusId === 'elaboracao').length;
   const countAprovacao = effectivePayments.filter((payment) => payment.statusId === 'aprovacao').length;
+
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      addToast('Não há lançamentos para exportar nos filtros atuais', 'info');
+      return;
+    }
+    const headers = ['Identificador', 'Favorecido', 'CPF', 'Convenio', 'Bruto', 'Descontos', 'Status'];
+    const rows = filtered.map((p) => [
+      p.ident,
+      p.nome,
+      p.cpf,
+      p.convenio,
+      p.bruto.replace('R$ ', ''),
+      p.descontos.replace('- R$ ', ''),
+      getPaymentStatusMeta(p.statusId).badge,
+    ]);
+    const csvContent = [headers, ...rows].map((e) => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `relatorio_rpas_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast('Extrato CSV gerado com sucesso.', 'success');
+  };
 
   return (
     <div className="animate-fade-in relative">
@@ -185,6 +218,24 @@ export default function Pagamentos() {
             <span>⚙️</span> Contratos / Projetos
           </button>
           <button
+            onClick={handleExportCSV}
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-light)',
+              color: 'var(--text-main)',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              fontWeight: 600,
+              transition: 'transform 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            <span>📥</span> Exportar Extrato CSV
+          </button>
+          <button
             onClick={() => setModalContent('Lancar Lote via Excel')}
             style={{
               background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
@@ -290,19 +341,34 @@ export default function Pagamentos() {
           }}
         >
           <option>Ref: Fevereiro/2026</option>
+          <option>Ref: Janeiro/2026</option>
+          <option>Ref: Dezembro/2025</option>
         </select>
-        <select
-          style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-light)',
-            background: 'white',
-            fontSize: '0.875rem',
-            minWidth: '150px',
-          }}
-        >
-          <option>Todas Unidades</option>
-        </select>
+        {appState.activeTenant === 'corp' && (
+          <select
+            value={tenantFilter}
+            onChange={(e) => {
+              setTenantFilter(e.target.value);
+              triggerSearchFeedback();
+            }}
+            style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-light)',
+              background: 'white',
+              fontSize: '0.875rem',
+              minWidth: '150px',
+            }}
+          >
+            <option value="todas">Todas Unidades</option>
+            <option value="ufrj">Gestão UFRJ</option>
+            <option value="coppetec">Fundação COPPETEC</option>
+          </select>
+        )}
+      </div>
+
+      <div style={{ marginBottom: '24px', fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+        Mostrando {filtered.length} lançamentos da visão {appState.activeTenant.toUpperCase()}
       </div>
 
       <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
@@ -323,7 +389,7 @@ export default function Pagamentos() {
                 Identificador
               </th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>
-                Favorecido / Convenio
+                Favorecido / Convênio
               </th>
               <th
                 style={{
@@ -345,7 +411,7 @@ export default function Pagamentos() {
                   textAlign: 'right',
                 }}
               >
-                Deducoes (IR/INSS)
+                Deduções (IR/INSS)
               </th>
               <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>
                 Status / Camada
@@ -373,14 +439,14 @@ export default function Pagamentos() {
                   <td style={{ padding: '18px 24px' }}>
                     <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{payment.nome}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Convenio: {payment.convenio}
+                      Convênio: {payment.convenio}
                     </div>
                   </td>
                   <td style={{ padding: '18px 24px', color: 'var(--text-main)', fontWeight: 600, textAlign: 'right' }}>
                     {payment.bruto}
                   </td>
                   <td style={{ padding: '18px 24px', color: 'var(--danger)', fontWeight: 600, textAlign: 'right' }}>
-                    {payment.descontos}
+                    {payment.descontos === '--' ? <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontStyle: 'italic' }}>Aguardando Cálculo</span> : payment.descontos}
                   </td>
                   <td style={{ padding: '18px 24px' }}>
                     <span
@@ -406,8 +472,16 @@ export default function Pagamentos() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  Nenhum pagamento encontrado.
+                <td colSpan={6} style={{ padding: '80px 24px', textAlign: 'center' }}>
+                  <div style={{ background: 'var(--bg-surface)', width: '64px', height: '64px', margin: '0 auto', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', marginBottom: '16px', boxShadow: 'var(--shadow-sm)' }}>
+                    📂
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+                    {tab === 'aprovacao' ? 'Nenhum Lançamento para Aprovar' : 'Nenhum Resultado Encontrado'}
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    {tab === 'aprovacao' ? 'Você não tem nenhum RPA retido aguardando assinatura na base atual.' : 'Tente alterar os filtros ou o termo de pesquisa.'}
+                  </p>
                 </td>
               </tr>
             )}

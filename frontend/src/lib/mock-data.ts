@@ -1,5 +1,23 @@
 export type PaymentStatus = 'elaboracao' | 'aprovacao' | 'pago' | 'rejeitado';
 
+export type AutonomoRecord = {
+  id: number;
+  nome: string;
+  cpf: string;
+  dep: number;
+  repasse: string;
+  status: 'Ativo' | 'Inativo' | 'Bloqueado';
+  tenant: string;
+};
+
+export const mockAutonomos: AutonomoRecord[] = [
+  { id: 1, nome: 'Eduardo Raupp de Vargas', cpf: '***.341.22*-**', dep: 1, repasse: 'R$ 14.599,23', status: 'Ativo', tenant: 'UFRJ' },
+  { id: 2, nome: 'Claudia Affonso Silva Araujo', cpf: '***.112.55*-**', dep: 0, repasse: 'R$ 5.967,49', status: 'Ativo', tenant: 'COPPETEC' },
+  { id: 3, nome: 'Adriana Aparecida Marques', cpf: '***.892.11*-**', dep: 2, repasse: 'R$ 4.124,24', status: 'Ativo', tenant: 'UFRJ' },
+  { id: 4, nome: 'Joao Carlos da Silva', cpf: '***.123.45*-**', dep: 0, repasse: 'R$ 2.500,00', status: 'Inativo', tenant: 'Corp' },
+  { id: 5, nome: 'Maria Joana de Souza', cpf: '***.567.89*-**', dep: 1, repasse: 'R$ 1.200,00', status: 'Ativo', tenant: 'Auditoria' },
+];
+
 export type PaymentRecord = {
   id: string;
   ident: string;
