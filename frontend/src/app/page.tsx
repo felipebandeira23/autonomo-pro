@@ -54,7 +54,15 @@ function KpiCard({ label, value, delta, tooltip, color = 'var(--text-main)', loa
         {label}
       </div>
       <div
-        style={{ fontSize: '2.25rem', fontWeight: 700, color, marginTop: '10px', cursor: tooltip ? 'help' : 'default' }}
+        style={{ 
+          fontSize: 'clamp(1.5rem, 3.5vw, 2.25rem)', 
+          fontWeight: 700, 
+          color, 
+          marginTop: '10px', 
+          cursor: tooltip ? 'help' : 'default',
+          wordBreak: 'break-word',
+          lineHeight: '1.2'
+        }}
         onMouseEnter={() => tooltip && setShowTip(true)}
         onMouseLeave={() => setShowTip(false)}
         aria-describedby={tooltip ? `tip-${label}` : undefined}
@@ -600,7 +608,7 @@ function DashboardContent() {
       )}
 
       {/* ── KPI CARDS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
         <KpiCard
           label="Autônomos Ativos"
           value={String(metrics.autonomosAtivos)}

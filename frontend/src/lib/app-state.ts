@@ -70,7 +70,16 @@ function hydrateState() {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      state = { ...defaultState, ...JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      state = {
+        ...defaultState,
+        ...parsed,
+        // Dados de código sempre têm prioridade sobre localStorage
+        // para evitar crash com campos novos (ex: payment.data, referencia)
+        paymentRecords: defaultState.paymentRecords,
+        irrfBrackets: defaultState.irrfBrackets,
+        autonomos: defaultState.autonomos,
+      };
     }
   } catch {
     state = defaultState;
@@ -384,7 +393,7 @@ export function getDashboardMetrics(appState: AppState, referencia?: string): Da
 
   // Histórico recente: os 5 mais recentes ordenados por data desc
   const historicoRecente = [...tenantPayments]
-    .sort((a, b) => b.data.localeCompare(a.data))
+    .sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
     .slice(0, 5);
 
   const syncStatus = appState.tenants[
