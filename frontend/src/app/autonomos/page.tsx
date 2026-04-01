@@ -39,7 +39,8 @@ export default function Autonomos() {
     gender: '', zip: '', address: '',
     neighborhood: '', city: '', phone: '',
     mobile: '', email: '', bank: '',
-    agency: '', account: '', tenantId: ''
+    agency: '', account: '', tenantId: '',
+    nature: '', functionalType: '', teacherClassification: ''
   });
   
   useEscapeToClose(Boolean(modalType), () => setModalType(null));
@@ -427,6 +428,45 @@ export default function Autonomos() {
                       <option value="COPPETEC_ID_FAKE">Fundação COPPETEC</option>
                     </select>
                   </div>
+
+                  {/* Row 7 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Natureza: *</label>
+                    <select required value={formData.nature} onChange={e => setFormData({...formData, nature: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'white' }}>
+                      <option value="">--selecione--</option>
+                      <option value="UFRJ">UFRJ</option>
+                      <option value="OUTRA">Outra Instituição</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Tipo Funcional: *</label>
+                    <select required value={formData.functionalType} onChange={e => setFormData({...formData, functionalType: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'white' }}>
+                      <option value="">--selecione--</option>
+                      <option value="Tecnico">Técnico</option>
+                      <option value="Administrativo">Administrativo</option>
+                      <option value="Docente">Docente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Classificação do Docente: *</label>
+                    <select required value={formData.teacherClassification} onChange={e => setFormData({...formData, teacherClassification: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'white' }}>
+                      <option value="">--selecione--</option>
+                      <option value="Auxiliar">Auxiliar</option>
+                      <option value="Auxiliar/Aposentado">Auxiliar/Aposentado</option>
+                      <option value="Adjunto">Adjunto</option>
+                      <option value="Adjunto/Aposentado">Adjunto/Aposentado</option>
+                      <option value="Associado">Associado</option>
+                      <option value="Associado/Aposentado">Associado/Aposentado</option>
+                      <option value="Titular">Titular</option>
+                      <option value="Titular/Aposentado">Titular/Aposentado</option>
+                      <option value="Substituto">Substituto</option>
+                      <option value="Substituto/Aposentado">Substituto/Aposentado</option>
+                      <option value="Assistente">Assistente</option>
+                      <option value="Assistente/Aposentado">Assistente/Aposentado</option>
+                      <option value="Aposentado">Aposentado</option>
+                      <option value="Aposentado/Aposentado">Aposentado/Aposentado</option>
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -457,7 +497,7 @@ export default function Autonomos() {
                     </button>
                     <button 
                       type="button" 
-                      onClick={() => setFormData({ document: '', name: '', identity: '', issuer: '', pisVoter: '', numDependents: 0, gender: '', zip: '', address: '', neighborhood: '', city: '', phone: '', mobile: '', email: '', bank: '', agency: '', account: '', tenantId: '' })} 
+                      onClick={() => setFormData({ document: '', name: '', identity: '', issuer: '', pisVoter: '', numDependents: 0, gender: '', zip: '', address: '', neighborhood: '', city: '', phone: '', mobile: '', email: '', bank: '', agency: '', account: '', tenantId: '', nature: '', functionalType: '', teacherClassification: '' })} 
                       style={{ padding: '8px 24px', background: 'white', border: '1px solid var(--border-light)', color: 'var(--text-main)', borderRadius: '4px', fontWeight: 600, cursor: 'pointer' }}
                     >
                       Limpar

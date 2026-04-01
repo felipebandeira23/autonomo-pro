@@ -78,6 +78,10 @@ model Professional {
   agency         String?  // Agencia
   account        String?  // Conta
 
+  nature         String?  // Natureza
+  functionalType String?  // Tipo Funcional
+  teacherClassification String? // Classificação do Docente
+
   status         ProfessionalStatus @default(ACTIVE)
   
   tenantId       String
