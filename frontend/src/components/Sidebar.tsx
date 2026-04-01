@@ -2,9 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { getDerivedTenantMetrics, useAppState } from '@/lib/app-state';
 
 export default function Sidebar() {
+  const pathname = usePathname();
   const appState = useAppState();
   const metrics = getDerivedTenantMetrics(appState);
 
@@ -30,21 +32,21 @@ export default function Sidebar() {
       <nav style={{ padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
         <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: '8px', paddingLeft: '8px' }}>Dashboard</div>
         
-        <Link href="/" className="sidebar-link sidebar-link-active">
+        <Link href="/" className={`sidebar-link ${pathname === '/' ? 'sidebar-link-active' : ''}`}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>📊</span> Indicadores
         </Link>
-        <Link href="/autonomos" className="sidebar-link">
+        <Link href="/autonomos" className={`sidebar-link ${pathname === '/autonomos' ? 'sidebar-link-active' : ''}`}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>🧑‍🏫</span> Autônomos
         </Link>
-        <Link href="/pagamentos" className="sidebar-link">
+        <Link href="/pagamentos" className={`sidebar-link ${pathname?.startsWith('/pagamentos') ? 'sidebar-link-active' : ''}`}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>💸</span> Pagamentos
         </Link>
 
         <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, marginBottom: '8px', marginTop: '32px', paddingLeft: '8px' }}>Gestão</div>
-        <Link href="/configuracoes" className="sidebar-link">
+        <Link href="/configuracoes" className={`sidebar-link ${pathname === '/configuracoes' ? 'sidebar-link-active' : ''}`}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>⚙️</span> Engenharia Tributária
         </Link>
-        <Link href="/tenants" className="sidebar-link">
+        <Link href="/tenants" className={`sidebar-link ${pathname === '/tenants' ? 'sidebar-link-active' : ''}`}>
           <span style={{ marginRight: '12px', fontSize: '1.1rem' }}>🏢</span> Unidades Gestoras
           {metrics.totalCriticalAlerts > 0 && (
             <span style={{
