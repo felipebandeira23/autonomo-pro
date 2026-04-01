@@ -135,17 +135,15 @@ export default function Autonomos() {
   };
 
   const formatDocument = (doc: string) => {
-    // Mascara LGPD basica de CPF
     return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '***.$2.$3-**');
   };
 
   return (
-    <div className="animate-fade-in relative min-h-screen">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+    <div className="animate-fade-in relative z-10" style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Gestão de Autônomos</h2>
-          <p className="text-slate-500 mt-2">
+          <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Gestão de Autônomos</h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
             Cadastre profissionais, acompanhe status transacionais e audite inativações.
           </p>
         </div>
@@ -153,121 +151,125 @@ export default function Autonomos() {
         {currentRole !== 'AUDITOR' && (
           <button
             onClick={() => setModalType('CREATE')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold shadow-sm transition-all focus:ring-4 focus:ring-indigo-100 flex items-center gap-2"
+            style={{ 
+              background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
+              color: 'white', 
+              padding: '12px 24px', 
+              borderRadius: '8px', 
+              fontWeight: 600, 
+              boxShadow: 'var(--shadow-md)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              border: 'none', 
+              cursor: 'pointer' 
+            }}
           >
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            Novo Prestador
+            <span>+</span> Novo Prestador
           </button>
         )}
       </div>
 
-      {/* FILTER BAR SECTION */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 mb-6 items-center">
-        <div className="flex-1 w-full relative">
-          <svg className="absolute left-3 top-3 text-slate-400" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input
-            type="text"
-            placeholder="Pesquisar por nome ou CPF..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
-          />
-        </div>
-        <div className="w-full md:w-auto">
-          <select 
-            value={statusFilter} 
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="w-full md:w-48 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          >
-            <option value="">Todos Status</option>
-            <option value="ACTIVE">Ativos</option>
-            <option value="INACTIVE">Inativos</option>
-          </select>
+      <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <span style={{ position: 'absolute', top: '12px', left: '16px', fontSize: '1.2rem' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Pesquisar por nome ou CPF..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              style={{ width: '100%', padding: '12px 16px 12px 48px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }}
+            />
+          </div>
+          <div style={{ minWidth: '200px' }}>
+            <select 
+              value={statusFilter} 
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }}
+            >
+              <option value="">Todos Status</option>
+              <option value="ACTIVE">Ativos</option>
+              <option value="INACTIVE">Inativos</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* TABLE SECTION */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        {loading ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  {['Profissional', 'Documento', 'Unidade', 'Status', 'Ações'].map(col => (
-                    <th key={col} className={`py-4 px-6 text-sm font-semibold text-slate-600 ${col === 'Status' ? 'text-center' : col === 'Ações' ? 'text-right' : ''}`}>{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="py-4 px-6">
-                      <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-slate-100 rounded w-1/2"></div>
+      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-light)', background: 'rgba(9, 30, 66, 0.02)' }}>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Profissional</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Documento</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Unidade</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem', textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                // SKELETON
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-light)', animation: 'pulse 1.5s infinite opacity' }}>
+                    <td style={{ padding: '16px 24px' }}>
+                      <div style={{ height: '16px', background: 'var(--border-light)', borderRadius: '4px', width: '70%', marginBottom: '8px' }}></div>
+                      <div style={{ height: '12px', background: 'rgba(9, 30, 66, 0.04)', borderRadius: '4px', width: '40%' }}></div>
                     </td>
-                    <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-full"></div></td>
-                    <td className="py-4 px-6"><div className="h-5 bg-slate-200 rounded-full w-24"></div></td>
-                    <td className="py-4 px-6 text-center"><div className="inline-block h-6 bg-slate-200 rounded-full w-16"></div></td>
-                    <td className="py-4 px-6 text-right"><div className="inline-block h-6 bg-slate-200 rounded w-16"></div></td>
+                    <td style={{ padding: '16px 24px' }}><div style={{ height: '16px', background: 'var(--border-light)', borderRadius: '4px', width: '100%' }}></div></td>
+                    <td style={{ padding: '16px 24px' }}><div style={{ height: '20px', background: 'rgba(9, 30, 66, 0.04)', borderRadius: '12px', width: '80%' }}></div></td>
+                    <td style={{ padding: '16px 24px', textAlign: 'center' }}><div style={{ display: 'inline-block', height: '24px', background: 'var(--border-light)', borderRadius: '12px', width: '60px' }}></div></td>
+                    <td style={{ padding: '16px 24px', textAlign: 'right' }}><div style={{ display: 'inline-block', height: '24px', background: 'rgba(9, 30, 66, 0.04)', borderRadius: '4px', width: '60px' }}></div></td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-16 text-center">
-            <svg className="w-16 h-16 text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-            <h3 className="text-lg font-medium text-slate-900">Nenhum profissional encontrado</h3>
-            <p className="text-sm text-slate-500 mt-1 max-w-sm">Ajuste os filtros de pesquisa acima ou adicione um novo prestador para começar a realizar pagamentos.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Profissional</th>
-                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Documento</th>
-                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Unidade</th>
-                  <th className="py-4 px-6 text-sm font-semibold text-slate-600 text-center">Status</th>
-                  <th className="py-4 px-6 text-sm font-semibold text-slate-600 text-right">Ações</th>
+                ))
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '64px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📭</div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Nenhum profissional encontrado</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '400px', margin: '0 auto' }}>Ajuste os filtros de pesquisa acima ou adicione um novo prestador para começar a realizar pagamentos.</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.map((prof) => (
-                  <tr key={prof.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-slate-800">{prof.name}</div>
-                      <div className="text-xs text-slate-500 mt-1">{prof.numDependents} dependentes legais</div>
+              ) : (
+                data.map(prof => (
+                  <tr key={prof.id} style={{ borderBottom: '1px solid var(--border-light)', transition: 'background-color 0.2s' }}>
+                    <td style={{ padding: '16px 24px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{prof.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{prof.numDependents} dependentes legais</div>
                     </td>
-                    <td className="py-4 px-6 text-slate-600 font-mono text-sm">{formatDocument(prof.document)}</td>
-                    <td className="py-4 px-6 text-slate-600">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                    <td style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '0.875rem', fontFamily: 'monospace' }}>{formatDocument(prof.document)}</td>
+                    <td style={{ padding: '16px 24px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                      <span style={{ padding: '4px 12px', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
                         {prof.tenant?.name || 'Não atribuída'}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-center">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${prof.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                      <span style={{ 
+                        padding: '4px 12px', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700,
+                        background: prof.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(9, 30, 66, 0.04)',
+                        color: prof.status === 'ACTIVE' ? 'var(--success)' : 'var(--text-muted)'
+                      }}>
                         {prof.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
+                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       {currentRole !== 'AUDITOR' && (
-                        <div className="flex items-center justify-end gap-2">
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           {prof.status === 'ACTIVE' ? (
                             <button
                               onClick={() => { setTargetId(prof.id); setModalType('DEACTIVATE'); }}
-                              className="text-xs font-medium text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-3 py-1.5 rounded-md transition-colors"
-                              title={`Inativar Cadastro de ${prof.name}`}
-                              aria-label={`Inativar Cadastro de ${prof.name}`}
+                              style={{ background: 'transparent', border: '1px solid rgba(222, 53, 11, 0.3)', color: 'var(--danger)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                             >
                               Inativar
                             </button>
                           ) : (
                             <button
                               onClick={() => { setTargetId(prof.id); setModalType('REACTIVATE'); }}
-                              className="text-xs font-medium text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-md transition-colors"
-                              title={`Reativar Cadastro de ${prof.name}`}
-                              aria-label={`Reativar Cadastro de ${prof.name}`}
+                              style={{ background: 'transparent', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--success)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                             >
                               Reativar
                             </button>
@@ -276,32 +278,32 @@ export default function Autonomos() {
                       )}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
         
-        {/* Pagination Info */}
+        {/* Pagination */}
         {!loading && totalPages > 0 && (
-          <div className="border-t border-slate-100 p-4 flex items-center justify-between bg-white text-sm">
-            <span className="text-slate-500">
-              Mostrando <span className="font-medium text-slate-900">{data.length}</span> de <span className="font-medium text-slate-900">{totalItems}</span> registros
+          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              Mostrando <strong style={{ color: 'var(--text-main)' }}>{data.length}</strong> de <strong style={{ color: 'var(--text-main)' }}>{totalItems}</strong> registros
             </span>
             {totalPages > 1 && (
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1.5 border border-slate-200 rounded-md disabled:opacity-50 disabled:bg-slate-50 hover:bg-slate-50 font-medium text-slate-700 transition-colors"
+                  style={{ padding: '6px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 600, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
                 >
                   Anterior
                 </button>
-                <div className="px-3 py-1.5 font-medium text-slate-700">Página {page} de {totalPages}</div>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 600 }}>Página {page} de {totalPages}</span>
                 <button 
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1.5 border border-slate-200 rounded-md disabled:opacity-50 disabled:bg-slate-50 hover:bg-slate-50 font-medium text-slate-700 transition-colors"
+                  style={{ padding: '6px 16px', background: 'white', border: '1px solid var(--border-light)', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 600, cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}
                 >
                   Próxima
                 </button>
@@ -311,70 +313,61 @@ export default function Autonomos() {
         )}
       </div>
 
-      {/* MODALS TRANSACIONAIS */}
       {modalType && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
-            
-            <div className={`p-6 border-b ${modalType === 'DEACTIVATE' ? 'border-rose-100 bg-rose-50/50' : modalType === 'REACTIVATE' ? 'border-emerald-100 bg-emerald-50/50' : 'border-slate-100'}`}>
-              <div className="flex justify-between items-center">
-                <h3 className={`text-lg font-bold ${modalType === 'DEACTIVATE' ? 'text-rose-800' : modalType === 'REACTIVATE' ? 'text-emerald-800' : 'text-slate-800'}`}>
-                  {modalType === 'CREATE' ? 'Cadastrar Prestador' : 
-                   modalType === 'DEACTIVATE' ? 'Confirmar Inativação' : 'Confirmar Reativação'}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(9,30,66,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--bg-body)', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', background: modalType === 'DEACTIVATE' ? 'rgba(222, 53, 11, 0.05)' : modalType === 'REACTIVATE' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: modalType === 'DEACTIVATE' ? 'var(--danger)' : modalType === 'REACTIVATE' ? 'var(--success)' : 'var(--text-main)' }}>
+                  {modalType === 'CREATE' ? 'Cadastrar Prestador' : modalType === 'DEACTIVATE' ? 'Confirmar Inativação' : 'Confirmar Reativação'}
                 </h3>
-                <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600">
-                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+                <button onClick={() => setModalType(null)} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
               </div>
             </div>
 
-            <form onSubmit={handleAction} className="p-6">
+            <form onSubmit={handleAction} style={{ padding: '24px' }}>
               {modalType === 'CREATE' && (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-                    <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="João da Silva" />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Nome Completo</label>
+                    <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="João da Silva" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Documento (CPF)</label>
-                    <input required type="text" pattern="\d{11}" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Apenas números (11 dígitos)" />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Documento (CPF)</label>
+                    <input required type="text" pattern="\d{11}" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} placeholder="Apenas números (11 dígitos)" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Dependentes Legais</label>
-                    <input required type="number" min="0" value={formData.numDependents} onChange={e => setFormData({...formData, numDependents: Number(e.target.value)})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Dependentes Legais</label>
+                    <input required type="number" min="0" value={formData.numDependents} onChange={e => setFormData({...formData, numDependents: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
                   </div>
                 </div>
               )}
 
               {(modalType === 'DEACTIVATE' || modalType === 'REACTIVATE') && (
-                <div className="space-y-4">
-                  <p className="text-sm text-slate-600">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     A alteração do status cadastral será registrada na Trilha de Auditoria do sistema (Compliance/LGPD).
                   </p>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Motivo / Parecer Obrigatório</label>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Motivo / Parecer Obrigatório</label>
                     <textarea 
-                      required 
-                      minLength={10}
-                      rows={4}
-                      value={reason} 
-                      onChange={e => setReason(e.target.value)} 
-                      className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" 
+                      required minLength={10} rows={4} value={reason} onChange={e => setReason(e.target.value)} 
                       placeholder="Ex: Desligamento por solicitação do prestador. Ref. Processo SEI 1234..."
+                      style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)', fontFamily: 'inherit', resize: 'vertical' }}
                     ></textarea>
                   </div>
                 </div>
               )}
 
-              <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button>
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setModalType(null)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-light)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-main)' }}>Cancelar</button>
                 <button 
                   type="submit" 
-                  className={`px-4 py-2 font-medium text-white rounded-lg transition-colors shadow-sm ${
-                    modalType === 'DEACTIVATE' ? 'bg-rose-600 hover:bg-rose-700' : 
-                    modalType === 'REACTIVATE' ? 'bg-emerald-600 hover:bg-emerald-700' : 
-                    'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
+                  style={{ 
+                    padding: '10px 16px', 
+                    background: modalType === 'DEACTIVATE' ? 'var(--danger)' : modalType === 'REACTIVATE' ? 'var(--success)' : 'var(--primary)', 
+                    border: 'none', color: 'white', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' 
+                  }}
                 >
                   {modalType === 'CREATE' ? 'Finalizar Cadastro' : 'Confirmar Registro'}
                 </button>
@@ -383,7 +376,6 @@ export default function Autonomos() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
