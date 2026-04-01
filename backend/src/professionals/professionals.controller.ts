@@ -15,7 +15,7 @@ export class ProfessionalsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string
   ) {
-    if (!tenantId || !role) throw new BadRequestException('Faltando headers de autenticação contextual.');
+    if (tenantId === undefined || !role) throw new BadRequestException('Faltando headers de autenticação contextual.');
     return this.appService.findAll(
       tenantId, 
       role.toUpperCase(), 
@@ -41,7 +41,7 @@ export class ProfessionalsController {
     @Headers('x-user-role') role: string,
     @Body() payload: Prisma.ProfessionalUncheckedCreateInput
   ) {
-    if (!tenantId) throw new BadRequestException('Tenant ausente.');
+    if (tenantId === undefined) throw new BadRequestException('Tenant ausente.');
     payload.tenantId = payload.tenantId || tenantId; // Override fallback
     return this.appService.create(payload, role.toUpperCase());
   }
@@ -54,7 +54,7 @@ export class ProfessionalsController {
     @Headers('x-tenant-id') tenantId: string,
     @Body() payload: { status: ProfessionalStatus, reason: string }
   ) {
-    if (!userId || !userRole || !tenantId) throw new BadRequestException('Sessão inválida para ação destrutiva');
+    if (!userId || !userRole || tenantId === undefined) throw new BadRequestException('Sessão inválida para ação destrutiva');
     return this.appService.updateStatus(id, payload.status, payload.reason, userId, userRole.toUpperCase(), tenantId);
   }
 }

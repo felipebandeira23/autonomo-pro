@@ -291,15 +291,19 @@ export default function Configuracoes() {
           </div>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Servidor LDAP</label>
-            <input type="text" defaultValue="ldap://auth.corp.ufrj.br" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }} />
+            <input type="text" disabled defaultValue="ldap://********.ufrj.br" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
           </div>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Bind DN Autenticado</label>
-            <input type="text" defaultValue="cn=admin,dc=auth,dc=corp" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }} />
+            <input type="password" disabled defaultValue="*************************" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
+            <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>Cofre corporativo: credenciais mascaradas e protegidas via KMS.</p>
           </div>
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Integração E-mail (Notificações)</label>
-            <input type="text" defaultValue="smtp.corporativo.br:587" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }} />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input type="password" disabled defaultValue="**********************" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed' }} />
+              <button type="button" onClick={() => addToast('Edição de SMTP está bloqueada para acesso via web. Contate o SRE.', 'error')} style={{ padding: '0 16px', borderRadius: '8px', background: 'var(--bg-surface)', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer', color: 'var(--text-main)' }}>Editar</button>
+            </div>
             <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Utilizado para reportar RPAs em atraso e Guias de Recolhimento aos executivos.</p>
           </div>
         </div>
