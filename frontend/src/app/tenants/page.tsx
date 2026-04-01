@@ -10,6 +10,7 @@ type ModalType = 'global' | 'create' | null;
 export default function Tenants() {
   const appState = useAppState();
   const metrics = getDerivedTenantMetrics(appState);
+  const userRole = appState.role; // Puxamos o mock role p/ P0
   const tenants = Object.values(appState.tenants).filter((t: any) => t.id !== 'corp');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -360,7 +361,7 @@ export default function Tenants() {
                 </div>
               </div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', fontFamily: 'monospace' }}>
-                CNPJ: {tenant.cnpj}
+                CNPJ: {userRole === 'admin' ? tenant.cnpj : tenant.cnpj.replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})-(\d{2})$/, 'XX.XXX.XXX/$4-$2')}
               </p>
 
               <div style={{ background: 'rgba(0,0,0,0.02)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>

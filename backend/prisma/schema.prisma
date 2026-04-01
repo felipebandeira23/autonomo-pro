@@ -38,6 +38,7 @@ model Tenant {
   professionals Professional[]
   taxConfigs    TaxConfig[]
   payments      Payment[]
+  auditLogs     TenantAuditLog[]
 }
 
 model User {
@@ -51,7 +52,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  auditLogs ProfessionalAuditLog[]
+  auditLogs     ProfessionalAuditLog[]
+  tenantLogs    TenantAuditLog[]
 }
 
 model Professional {
@@ -154,9 +156,26 @@ model Payment {
   tenantId       String
   tenant         Tenant       @relation(fields: [tenantId], references: [id])
 
+  tenantConfigId String?
+  
   taxConfigId    String
   taxConfig      TaxConfig    @relation(fields: [taxConfigId], references: [id])
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
+
+model TenantAuditLog {
+  id             String   @id @default(uuid())
+  tenantId       String?  // nullable se for ação puramente corporativa cross-tenant
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  action         String   // ex: "SWITCH_CONTEXT", "EDIT_TAX_RULES", "VIEW_GLOBAL_DASHBOARD", "PROVISION_TENANT"
+  resource       String?  // ex: "/tax/config", "tenant_ufrj"
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?    // Snapshot da ação ou diff
+  createdAt      DateTime @default(now())
+}
+
