@@ -15,7 +15,11 @@ export default function Tenants() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({ nome: '', cnpj: '' });
   const [formError, setFormError] = useState('');
-  useEscapeToClose(Boolean(modalType), () => setModalType(null));
+  const [step, setStep] = useState(1);
+  useEscapeToClose(Boolean(modalType), () => {
+    setModalType(null);
+    setStep(1);
+  });
 
   const showToast = (message: string) => {
     addToast(message, 'info');
@@ -126,39 +130,74 @@ export default function Tenants() {
               </>
             ) : (
               <form onSubmit={handleCreateTenant}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-                  <input
-                    required
-                    type="text"
-                    value={formData.nome}
-                    onChange={(event) => {
-                      setFormData((current) => ({ ...current, nome: event.target.value }));
-                      if (formError) {
-                        setFormError('');
-                      }
-                    }}
-                    placeholder="Nome da instituicao"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
-                  />
-                  <input
-                    required
-                    type="text"
-                    value={formData.cnpj}
-                    onChange={(event) => {
-                      setFormData((current) => ({ ...current, cnpj: event.target.value }));
-                      if (formError) {
-                        setFormError('');
-                      }
-                    }}
-                    placeholder="CNPJ"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
-                  />
-                  {formError && <p style={{ color: 'var(--danger)', fontSize: '0.875rem' }}>{formError}</p>}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                  <div style={{ flex: 1, height: '4px', background: 'var(--primary)', borderRadius: '2px' }} />
+                  <div style={{ flex: 1, height: '4px', background: step >= 2 ? 'var(--primary)' : 'var(--border-light)', borderRadius: '2px', transition: 'background 0.3s' }} />
+                  <div style={{ flex: 1, height: '4px', background: step >= 3 ? 'var(--primary)' : 'var(--border-light)', borderRadius: '2px', transition: 'background 0.3s' }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+
+                {step === 1 && (
+                  <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Passo 1: Identificação da Entidade (CNPJ Matriz)</p>
+                    <input
+                      required
+                      type="text"
+                      value={formData.nome}
+                      onChange={(event) => {
+                        setFormData((current) => ({ ...current, nome: event.target.value }));
+                        setFormError('');
+                      }}
+                      placeholder="Nome da instituição"
+                      style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
+                    />
+                    <input
+                      required
+                      type="text"
+                      value={formData.cnpj}
+                      onChange={(event) => {
+                        setFormData((current) => ({ ...current, cnpj: event.target.value }));
+                        setFormError('');
+                      }}
+                      placeholder="CNPJ"
+                      style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
+                    />
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Passo 2: Dimensionamento do Limite de Escopo Multitenant</p>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>Plano de Execução RPA Mensal</label>
+                    <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}>
+                      <option>Foundation (Até 100 RPAs / mês)</option>
+                      <option>Scale (Sem Limite Transacional)</option>
+                    </select>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>E-mail do Gestor Raiz</label>
+                    <input type="email" placeholder="admin@instituicao.org.br" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px', alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>☁️</div>
+                    <h4 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>Confirmar Provisionamento</h4>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>O ambiente <strong>{formData.nome || 'Instituição'}</strong> receberá um banco de dados isolado no PostgreSQL, engine de impostos instanciada e roles em até 60 segundos.</p>
+                  </div>
+                )}
+
+                {formError && <p style={{ color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '16px' }}>{formError}</p>}
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <button
                     type="button"
-                    onClick={() => setModalType(null)}
+                    onClick={() => {
+                      if (step > 1) {
+                        setStep(step - 1);
+                      } else {
+                        setModalType(null);
+                        setStep(1);
+                      }
+                    }}
                     style={{
                       padding: '10px 16px',
                       borderRadius: '8px',
@@ -166,23 +205,36 @@ export default function Tenants() {
                       border: '1px solid var(--border-light)',
                       fontWeight: 600,
                       cursor: 'pointer',
+                      color: 'var(--text-main)'
                     }}
                   >
-                    Cancelar
+                    {step === 1 ? 'Cancelar' : 'Voltar'}
                   </button>
+
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={(e) => {
+                      if (step < 3) {
+                        if (step === 1 && (!formData.nome || !formData.cnpj)) {
+                          setFormError('Por favor, preencha os dados primários.');
+                          return;
+                        }
+                        setStep(step + 1);
+                      } else {
+                        handleCreateTenant(e as any);
+                      }
+                    }}
                     style={{
                       padding: '10px 16px',
                       borderRadius: '8px',
-                      background: 'var(--primary)',
+                      background: step === 3 ? 'var(--success)' : 'var(--primary)',
                       color: 'white',
                       border: 'none',
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
-                    Salvar instituição
+                    {step === 3 ? 'Autorizar e Criar Instituição' : 'Avançar'}
                   </button>
                 </div>
               </form>
@@ -199,6 +251,32 @@ export default function Tenants() {
           </p>
         </div>
         <div className="page-header-actions">
+          <button
+            onClick={() => {
+              const headers = ['Tenant', 'CNPJ', 'Ativos', 'Repasses (Mes)', 'Impostos (Mes)', 'Pendencias'];
+              const rows = tenants.map((t: any) => [
+                t.label, 
+                t.cnpj, 
+                t.baseAtivos, 
+                t.repassesMes.replace('R$ ', ''), 
+                t.impostosMes.replace('R$ ', ''), 
+                t.pendencias
+              ]);
+              const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', `billing_corporativo_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              addToast('Relatório de Billing Exportado.', 'success');
+            }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-main)', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            <span>📥</span> Exportar Billing
+          </button>
           <button
             onClick={() => setModalType('global')}
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', color: 'var(--text-main)', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
