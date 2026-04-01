@@ -134,7 +134,7 @@ export default function Pagamentos() {
                 &times;
               </button>
             </div>
-            {modalContent === 'Lancar Lote via Excel' ? (
+            {modalContent === 'Lançar Lote via Excel' ? (
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-main)', fontWeight: 600 }}>
                   Arquivo Lote RPA (.xlsx / .csv)
@@ -153,7 +153,7 @@ export default function Pagamentos() {
               </div>
             ) : (
               <div style={{ marginBottom: '24px', color: 'var(--text-muted)' }}>
-                Nenhum contrato ativo pendente de aprovacao previa da auditoria nesta competencia.
+                Nenhum contrato ativo pendente de aprovação prévia da auditoria nesta competência.
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
@@ -182,7 +182,7 @@ export default function Pagamentos() {
                   cursor: 'pointer',
                 }}
               >
-                Avancar Operacao
+                Avançar Operação
               </button>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function Pagamentos() {
             Esteira de Pagamentos
           </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Fluxo de aprovacao em camadas, retencao automatica da fonte e RPAs.
+            Fluxo de aprovação em camadas, retenção automática da fonte e RPAs.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -236,7 +236,7 @@ export default function Pagamentos() {
             <span>📥</span> Exportar Extrato CSV
           </button>
           <button
-            onClick={() => setModalContent('Lancar Lote via Excel')}
+            onClick={() => setModalContent('Lançar Lote via Excel')}
             style={{
               background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
               color: 'white',
@@ -251,7 +251,7 @@ export default function Pagamentos() {
               border: 'none',
             }}
           >
-            <span>+</span> Lancar Lote
+            <span>+</span> Lançar Lote
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export default function Pagamentos() {
                   textAlign: 'right',
                 }}
               >
-                Acoes
+                Ações
               </th>
             </tr>
           </thead>
@@ -464,7 +464,9 @@ export default function Pagamentos() {
                   </td>
                   <td style={{ padding: '18px 24px', textAlign: 'right' }}>
                     <Link href={`/pagamentos/${payment.ident.replace('#', '')}`} style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.875rem' }}>
-                      Analisar
+                      {payment.statusId === 'elaboracao' ? 'Editar / Submeter' : 
+                       payment.statusId === 'aprovacao' ? 'Aprovar / Recusar' : 
+                       payment.statusId === 'pago' ? 'Ver Recibo' : 'Analisar'}
                     </Link>
                   </td>
                 </tr>

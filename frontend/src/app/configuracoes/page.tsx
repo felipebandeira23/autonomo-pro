@@ -1,47 +1,120 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
-import { useAppState, addToast, saveBrackets } from '@/lib/app-state';
+import { useAppState, addToast } from '@/lib/app-state';
 
 export default function Configuracoes() {
   const appState = useAppState();
-  const { role, irrfBrackets } = appState;
+  const { role } = appState;
+  
   const [modalOpen, setModalOpen] = useState(false);
   const [saveTarget, setSaveTarget] = useState<string | null>(null);
-  const [brackets, setBrackets] = useState(irrfBrackets);
+  
+  const [loading, setLoading] = useState(true);
+  
+  const [configParams, setConfigParams] = useState({
+    year: 2026,
+    inssRate: 11.0,
+    inssCeiling: 932.32,
+    dependentDeduction: 189.59,
+    irrfBrackets: [] as any[]
+  });
+
+  const [brackets, setBrackets] = useState<any[]>([]);
+
   useEscapeToClose(modalOpen || Boolean(saveTarget), () => {
     setModalOpen(false);
     setSaveTarget(null);
   });
 
-  const handleSave = (moduleName: string) => {
+  useEffect(() => {
+    fetch('http://localhost:3001/tax/config?year=2026', {
+      headers: {
+        'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID'
+      }
+    })
+      .then(r => r.json())
+      .then(data => {
+        setConfigParams({
+          year: data.year,
+          inssRate: data.inssRate * 100, // stored as 0.11, display as 11
+          inssCeiling: data.inssCeiling,
+          dependentDeduction: data.dependentDeduction,
+          irrfBrackets: data.irrfBrackets
+        });
+        setBrackets(data.irrfBrackets);
+        setLoading(false);
+      })
+      .catch(e => {
+        console.error(e);
+        addToast('Erro ao carregar configurações do motor de imposto', 'error');
+        setLoading(false);
+      });
+  }, [appState.activeTenant]);
+
+  const handleSaveAll = async () => {
     if (role === 'auditoria') {
       addToast('Acesso negado: Perfil Auditoria possui apenas permissão de leitura.', 'error');
       return;
     }
-    addToast(`As configurações de ${moduleName} foram salvas com sucesso.`, 'success');
+    
+    try {
+      const payload = {
+        ...configParams,
+        inssRate: configParams.inssRate / 100,
+        irrfBrackets: brackets
+      };
+
+      const res = await fetch('http://localhost:3001/tax/config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID',
+          'x-user-role': role.toUpperCase()
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        addToast(`As configurações do motor de SSOT foram salvas com sucesso.`, 'success');
+        setSaveTarget(null);
+      } else {
+        const d = await res.json();
+        addToast('Erro ao salvar: ' + d.message, 'error');
+      }
+    } catch (e) {
+      addToast('Erro de comunicação.', 'error');
+    }
   };
 
   const handleBracketSave = () => {
     for (const b of brackets) {
-      const parsedAliquota = parseFloat(b.aliquota.replace('%', '').replace(',', '.'));
-      const parsedDedutivel = parseFloat(b.parcelaDedutivel.replace('R$', '').replace(/\./g, '').replace(',', '.'));
+      const aliquotaStr = String(b.rate);
+      const deducaoStr = String(b.deduction);
+      
+      const parsedAliquota = parseFloat(aliquotaStr);
+      const parsedDedutivel = parseFloat(deducaoStr);
       
       if (isNaN(parsedAliquota) || isNaN(parsedDedutivel)) {
-        addToast('Erro de validação: Insira apenas caracteres numéricos válidos para alíquotas e deduções.', 'error');
+        addToast('Erro de validação: Insira apenas numéricos válidos.', 'error');
         return;
       }
       
-      if (parsedAliquota > 27.5 || parsedAliquota < 0) {
-        addToast('Aviso de Negócio: A alíquota do IRRF deve estar entre 0% e 27.5%.', 'error');
+      if (parsedAliquota > 0.275 || parsedAliquota < 0) {
+        addToast('Aviso de Negócio: A alíquota do IRRF deve estar entre 0 e 0.275', 'error');
         return;
       }
     }
-    saveBrackets(brackets);
     setModalOpen(false);
-    handleSave('Faixas Brackets IRRF');
+    // Atualiza o state master, mas o save real acontece  no handleSaveAll
   };
+
+  const handleConfigChange = (key: string, value: string) => {
+    setConfigParams(prev => ({ ...prev, [key]: parseFloat(value.replace(',', '.')) || 0 }));
+  };
+
+  if (loading) return <div className="p-10 text-center text-slate-500">Sincronizando com o Motor Fiscal...</div>;
 
   return (
     <div className="animate-fade-in relative">
@@ -72,7 +145,7 @@ export default function Configuracoes() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>Brackets SRF Mapeados (Edicao Avancada)</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>Brackets SRF Mapeados (Edição Avançada)</h3>
               <button onClick={() => setModalOpen(false)} style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 &times;
               </button>
@@ -81,22 +154,24 @@ export default function Configuracoes() {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                 <thead style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <tr>
-                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Faixa (Mes base)</th>
-                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Aliquota (%)</th>
-                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Parcela Dedutivel (R$)</th>
+                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Piso (Min)</th>
+                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Teto (Max)</th>
+                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Alíquota (Decimal)</th>
+                    <th style={{ padding: '8px', color: 'var(--text-muted)' }}>Parcela Dedutível (R$)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {brackets.map((bracket, index) => (
-                    <tr key={bracket.faixa}>
-                      <td style={{ padding: '8px' }}>{bracket.faixa}</td>
+                    <tr key={index}>
+                      <td style={{ padding: '8px' }}>R$ {bracket.min}</td>
+                      <td style={{ padding: '8px' }}>{bracket.max === null ? 'Infinito' : `R$ ${bracket.max}`}</td>
                       <td style={{ padding: '8px' }}>
                         <input
                           type="text"
-                          value={bracket.aliquota}
-                          onChange={(event) =>
+                          value={bracket.rate}
+                          onChange={(e) =>
                             setBrackets((current) =>
-                              current.map((item, itemIndex) => (itemIndex === index ? { ...item, aliquota: event.target.value } : item)),
+                              current.map((item, i) => (i === index ? { ...item, rate: parseFloat(e.target.value) } : item))
                             )
                           }
                           style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}
@@ -105,12 +180,12 @@ export default function Configuracoes() {
                       <td style={{ padding: '8px' }}>
                         <input
                           type="text"
-                          value={bracket.parcelaDedutivel}
-                          onChange={(event) =>
+                          value={bracket.deduction}
+                          onChange={(e) =>
                             setBrackets((current) =>
-                              current.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, parcelaDedutivel: event.target.value } : item,
-                              ),
+                              current.map((item, i) =>
+                                i === index ? { ...item, deduction: parseFloat(e.target.value) } : item
+                              )
                             )
                           }
                           style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}
@@ -120,6 +195,7 @@ export default function Configuracoes() {
                   ))}
                 </tbody>
               </table>
+              <p className="text-xs text-rose-500 mt-4 font-semibold">Tabela provida externamente, edite com cautela a matriz algoritmica.</p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button onClick={() => setModalOpen(false)} style={{ padding: '10px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer' }}>
@@ -129,7 +205,7 @@ export default function Configuracoes() {
                 onClick={handleBracketSave}
                 style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
               >
-                Confirmar Alteracoes Base
+                Confirmar Alterações Temporárias
               </button>
             </div>
           </div>
@@ -163,40 +239,34 @@ export default function Configuracoes() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>Atenção: Impacto Global</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>Atenção: Trilha de Validação</h3>
               <button onClick={() => setSaveTarget(null)} style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 &times;
               </button>
             </div>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
-              A alteração de {saveTarget} afetará <strong>todos os meses subsequentes de novos pagamentos</strong> 
-              e recalculará as guias da competência atual que ainda estiverem "Em Elaboração". Confirma operação?
+              Sua edição nas tabelas e teto será guardada via hash na trilha de auditoria e aplicada aos fechamentos abertos imediatamente na base ({configParams.year}). Confirmar gravação no Motor SSOT?
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button onClick={() => setSaveTarget(null)} style={{ padding: '10px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer' }}>
                 Revisar Valores
               </button>
               <button
-                onClick={() => {
-                  setSaveTarget(null);
-                  handleSave(saveTarget);
-                }}
+                onClick={handleSaveAll}
                 style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--success)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
               >
-                Confirmar Salvar
+                Auditar e Salvar
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast removed since it is now global */}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div style={{ maxWidth: '700px' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Engenharia Tributária</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Gerencie as diretrizes de impostos sem edição de código. Valores defasados podem ser alterados pelo próprio órgão mantenedor.
+            Gerencie as diretrizes de impostos via SSOT Backend (Single Source of Truth). As regras tem versionamento automático pelo ano corrente.
           </p>
         </div>
         <button 
@@ -209,7 +279,7 @@ export default function Configuracoes() {
           }} 
           style={{ background: role === 'auditoria' ? 'var(--border-light)' : 'var(--success)', color: role === 'auditoria' ? 'var(--text-muted)' : 'white', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', cursor: role === 'auditoria' ? 'not-allowed' : 'pointer' }}
         >
-          <span>💾</span> Salvar Todas Metas
+          <span>💾</span> Registrar em Auditoria (SSOT)
         </button>
       </div>
 
@@ -223,21 +293,21 @@ export default function Configuracoes() {
           </div>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>
-              <span>Ano-Base Vigente</span>
+              <span>Ano-Base Registrado</span>
             </label>
-            <input type="text" defaultValue="2026" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }} />
+            <input type="text" disabled value={configParams.year} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)' }} />
           </div>
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Aliquota do Calculo (%)</label>
+            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Alíquota do Cálculo (%)</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" defaultValue="11,00" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '40px' }} />
+              <input type="text" value={configParams.inssRate} onChange={e => handleConfigChange('inssRate', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '40px' }} />
               <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 'bold' }}>%</span>
             </div>
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Teto Máximo do Desconto</label>
+            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Teto Máximo do Desconto (R$)</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" defaultValue="932,32" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px' }} />
+              <input type="text" value={configParams.inssCeiling} onChange={e => handleConfigChange('inssCeiling', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px' }} />
               <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 'bold' }}>R$</span>
             </div>
             <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>O INSS não ultrapassará este valor somado a outras fontes.</p>
@@ -252,19 +322,19 @@ export default function Configuracoes() {
             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-main)' }}>Imposto de Renda (IRRF)</h3>
           </div>
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Dedução fixa por Dependente</label>
+            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Dedução fixa por Dependente (R$)</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" defaultValue="189,59" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px' }} />
+              <input type="text" value={configParams.dependentDeduction} onChange={e => handleConfigChange('dependentDeduction', e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px' }} />
               <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 'bold' }}>R$</span>
             </div>
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Trava da Dedução Simplificada</label>
+            <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '8px' }}>Dedução Simplificada de Substituição (R$)</label>
             <div style={{ position: 'relative' }}>
-              <input type="text" defaultValue="607,20" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px' }} />
+              <input type="text" disabled value="607.20" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '1rem', background: 'var(--bg-surface)', paddingLeft: '44px', cursor: 'not-allowed' }} />
               <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontWeight: 'bold' }}>R$</span>
             </div>
-            <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Para aplicar apenas na primeira faixa se não exceder o redutor.</p>
+            <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Protegido para bater apenas se for mais viável que dedução estrita/dependentes.</p>
           </div>
           <div style={{ marginTop: '24px', padding: '16px', borderRadius: '8px', border: '1px dashed var(--border-light)', background: 'rgba(9,30,66,0.02)' }}>
             <button 

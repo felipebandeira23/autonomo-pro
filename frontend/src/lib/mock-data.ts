@@ -193,8 +193,8 @@ export function getPaymentStatusMeta(statusId: PaymentStatus) {
 
   if (statusId === 'aprovacao') {
     return {
-      badge: 'Aprovacao Financeira',
-      detailBadge: 'Em Aprovacao',
+      badge: 'Aprovação Financeira',
+      detailBadge: 'Em Aprovação',
       style: 'rgba(245, 158, 11, 0.1)',
       color: '#d97706',
     };
@@ -210,8 +210,8 @@ export function getPaymentStatusMeta(statusId: PaymentStatus) {
   }
 
   return {
-    badge: 'Em Elaboracao',
-    detailBadge: 'Em Elaboracao',
+    badge: 'Em Elaboração',
+    detailBadge: 'Em Elaboração',
     style: 'rgba(9, 30, 66, 0.1)',
     color: 'var(--text-main)',
   };
