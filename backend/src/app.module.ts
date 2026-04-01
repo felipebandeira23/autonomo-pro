@@ -6,9 +6,10 @@ import { TaxModule } from './tax/tax.module';
 import { PdfModule } from './pdf/pdf.module';
 import { PaymentModule } from './payment/payment.module';
 import { ProfessionalsModule } from './professionals/professionals.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
-  imports: [PrismaModule, TaxModule, PdfModule, PaymentModule, ProfessionalsModule],
+  imports: [PrismaModule, TaxModule, PdfModule, PaymentModule, ProfessionalsModule, DashboardModule],
   controllers: [AppController],
   providers: [AppService],
 })

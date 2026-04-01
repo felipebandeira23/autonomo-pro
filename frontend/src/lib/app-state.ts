@@ -34,6 +34,8 @@ type AppState = {
   auditLogs: AuditLog[];
   activeTenant: string;
   isLoggedIn: boolean;
+  /** YYYY-MM — referência ativa no dashboard */
+  dashboardReferencia: string;
 };
 
 const defaultState: AppState = {
@@ -47,6 +49,7 @@ const defaultState: AppState = {
   auditLogs: [],
   activeTenant: 'corp',
   isLoggedIn: false,
+  dashboardReferencia: '2026-02',
 };
 
 let state: AppState = defaultState;
@@ -305,34 +308,121 @@ export function getEffectivePayments(appState: AppState, respectContext = true) 
 }
 
 function parseCurrency(str: string): number {
-  if (!str) return 0;
-  return Number(str.replace(/[^0-9,-]+/g,"").replace(",", "."));
+  if (!str || typeof str !== 'string') return 0;
+  // Remove o prefixo 'R$', pontos (separador de milhar) e substitui vírgula por ponto decimal
+  const cleaned = str.replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.').trim();
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Formata moeda de forma segura — nunca retorna 'R$ NaN' */
+export function formatSafeCurrency(val: unknown): string {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 'Indisponível';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
 }
 
 function formatCurrency(val: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 }
 
-export function getDerivedTenantMetrics(appState: AppState) {
-  const effectivePayments = getEffectivePayments(appState, true);
-  
+/** Contrato tipado do dashboard executivo */
+export interface DashboardMetrics {
+  referencia: string;
+  autonomosAtivos: number;
+  variacaoAutonomosMes: number;
+  valorBrutoRepassado: number;
+  valorBrutoRepassadoStr: string;
+  impostosRetidos: number;
+  impostosRetidosStr: string;
+  totalGuiasPendentes: number;
+  lancamentosEmAnalise: number;
+  historicoRecente: PaymentRecord[];
+  geradoEm: string;
+  syncStatus: 'ok' | 'atrasado' | 'erro';
+}
+
+export function getDashboardMetrics(appState: AppState, referencia?: string): DashboardMetrics {
+  const ref = referencia ?? appState.dashboardReferencia ?? '2026-02';
+  const allPayments = appState.paymentRecords.map((p) => getEffectivePayment(p, appState));
+
+  // Filtro por tenant
+  const tenantPayments = appState.activeTenant !== 'corp'
+    ? allPayments.filter(p => p.tenantId === appState.activeTenant)
+    : allPayments;
+
+  // Pagamentos da referência atual
+  const refPayments = tenantPayments.filter(p => p.referencia === ref);
+
+  // Pagamentos do mês anterior para delta
+  const [year, month] = ref.split('-').map(Number);
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevRef = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+  const prevPayments = tenantPayments.filter(p => p.referencia === prevRef);
+
+  // Autônomos ativos (filtro por tenant se não corporativo)
+  const autonomosAtivos = appState.activeTenant !== 'corp'
+    ? appState.autonomos.filter(a => a.tenant.toLowerCase() === appState.activeTenant && a.status === 'Ativo').length
+    : appState.autonomos.filter(a => a.status === 'Ativo').length;
+
+  const autonomosPrevAtivos = autonomosAtivos; // sem dados históricos reais, delta = 0
+
+  // Agregações financeiras da referência
+  const valorBrutoRepassado = refPayments.reduce((acc, p) => acc + parseCurrency(p.bruto), 0);
+  const impostosRetidos = refPayments.reduce((acc, p) => acc + parseCurrency(p.descontos), 0);
+
+  // Pendentes: não estão em 'pago'
+  const pendentes = tenantPayments.filter(p => p.statusId !== 'pago' && p.statusId !== 'elaboracao');
+  const emAnalise = tenantPayments.filter(p => p.statusId === 'aprovacao').length;
+
+  // Para o alerta UFRJ
   const showUfrjGuides = appState.activeTenant === 'corp' || appState.activeTenant === 'ufrj';
-  const rejectedUfrjCount = showUfrjGuides ? effectivePayments.filter(
-    (payment) => payment.tenantId === 'ufrj' && payment.statusId === 'rejeitado',
-  ).length : 0;
+  const rejectedCount = showUfrjGuides
+    ? tenantPayments.filter(p => p.tenantId === 'ufrj' && p.statusId === 'rejeitado').length
+    : 0;
 
-  const ativos = appState.activeTenant !== 'corp' 
-    ? appState.autonomos.filter(a => a.tenant.toLowerCase() === appState.activeTenant).length 
-    : appState.autonomos.length;
+  // Histórico recente: os 5 mais recentes ordenados por data desc
+  const historicoRecente = [...tenantPayments]
+    .sort((a, b) => b.data.localeCompare(a.data))
+    .slice(0, 5);
 
-  const repassesSum = effectivePayments.reduce((acc, p) => acc + parseCurrency(p.bruto), 0);
-  const impostosSum = effectivePayments.reduce((acc, p) => acc + parseCurrency(p.descontos), 0);
-  
+  const syncStatus = appState.tenants[
+    appState.activeTenant as keyof typeof appState.tenants
+  ]?.status === 'Atrasado' ? 'atrasado' : 'ok';
+
   return {
-    ufrjPendingGuides: showUfrjGuides ? 14 + rejectedUfrjCount : 0,
-    totalCriticalAlerts: showUfrjGuides ? 14 + rejectedUfrjCount : 0,
-    totalAtivos: ativos,
-    totalRepassesStr: formatCurrency(repassesSum),
-    totalImpostosStr: formatCurrency(impostosSum),
+    referencia: ref,
+    autonomosAtivos,
+    variacaoAutonomosMes: autonomosAtivos - autonomosPrevAtivos,
+    valorBrutoRepassado,
+    valorBrutoRepassadoStr: formatCurrency(valorBrutoRepassado),
+    impostosRetidos,
+    impostosRetidosStr: formatCurrency(impostosRetidos),
+    totalGuiasPendentes: showUfrjGuides ? 14 + rejectedCount : 0,
+    lancamentosEmAnalise: emAnalise,
+    historicoRecente,
+    geradoEm: new Date().toISOString(),
+    syncStatus,
+  };
+}
+
+export function setDashboardReferencia(ref: string) {
+  addAuditLog('dashboard', 'CHANGE_REFERENCIA', `Referência alterada para ${ref}`);
+  state = { ...state, dashboardReferencia: ref };
+  persistState();
+  notify();
+}
+
+// Mantém a função legada para compatibilidade com outros componentes que já a usam
+export function getDerivedTenantMetrics(appState: AppState) {
+  const m = getDashboardMetrics(appState);
+  const showUfrjGuides = appState.activeTenant === 'corp' || appState.activeTenant === 'ufrj';
+  return {
+    ufrjPendingGuides: m.totalGuiasPendentes,
+    totalCriticalAlerts: m.totalGuiasPendentes,
+    totalAtivos: m.autonomosAtivos,
+    totalRepassesStr: m.valorBrutoRepassadoStr,
+    totalImpostosStr: m.impostosRetidosStr,
   };
 }
