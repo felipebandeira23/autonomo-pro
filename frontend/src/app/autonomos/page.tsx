@@ -1,361 +1,365 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAppState, addToast } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
-import { useAppState, createAutonomo, toggleAutonomoStatus, addToast } from '@/lib/app-state';
+
+// Tipos base para o payload e state
+type ProfessionalStatus = 'ACTIVE' | 'INACTIVE';
+type ProfessionalListType = {
+  id: string;
+  name: string;
+  document: string;
+  status: ProfessionalStatus;
+  numDependents: number;
+  tenant: { name: string };
+};
 
 export default function Autonomos() {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [modalContent, setModalContent] = useState<string | null>(null);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState({ nome: '', cpf: '', dep: '0' });
-  const [targetId, setTargetId] = useState<number | null>(null);
-  useEscapeToClose(Boolean(modalContent), () => setModalContent(null));
-
   const appState = useAppState();
   
-  const baseDB = appState.activeTenant !== 'corp'
-    ? appState.autonomos.filter(a => a.tenant.toLowerCase() === appState.activeTenant)
-    : appState.autonomos;
+  // States de Dados
+  const [data, setData] = useState<ProfessionalListType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const filteredDB = baseDB.filter(
-    (item) =>
-      item.nome.toLowerCase().includes(search.toLowerCase()) ||
-      item.cpf.includes(search) ||
-      item.status.toLowerCase().includes(search.toLowerCase()),
-  );
+  // States de Filtro
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  
+  // States de UI
+  const [modalType, setModalType] = useState<'CREATE' | 'DEACTIVATE' | 'REACTIVATE' | null>(null);
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [formData, setFormData] = useState({ name: '', document: '', numDependents: 0 });
+  
+  useEscapeToClose(Boolean(modalType), () => setModalType(null));
 
-  const itemsPerPage = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredDB.length / itemsPerPage));
-  const currentItems = filteredDB.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-
-  const showToast = (message: string) => {
-    addToast(message, 'info');
+  // Mapa de Tenants para ID Real (Simplificação temporária até termos endpoint de Tenants no Front)
+  const tenantMap: Record<string, string> = {
+    'ufrj': 'UFRJ_ID_FAKE_SEED', // Vamos ignorar mapeamento rigoroso aqui pro demo, e enviar o Role adequado
+    'coppetec': 'COPPETEC_ID_FAKE'
   };
 
-  const handleDelete = (id: number) => {
-    setTargetId(id);
-    setModalContent('Confirmar Inativação');
-  };
+  const currentRole = appState.role === 'admin' ? 'CORP_ADMIN' 
+                      : appState.role === 'auditoria' ? 'AUDITOR' 
+                      : 'UNIT_OPERATOR';
 
-  const confirmDelete = () => {
-    if (targetId) {
-      toggleAutonomoStatus(targetId, 'Inativo');
-      addToast('Prestador marcado como inativo.', 'info');
-    }
-    setModalContent(null);
-    setTargetId(null);
-  };
+  const fetchAutonomos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = new URL('http://localhost:3001/professionals');
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('limit', '8');
+      if (search) url.searchParams.set('search', search);
+      if (statusFilter) url.searchParams.set('status', statusFilter);
 
-  const openCreateModal = () => {
-    setFormData({ nome: '', cpf: '', dep: '0' });
-    setFormError('');
-    setModalContent('Cadastrar Novo Prestador');
-  };
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!formData.nome.trim() || !formData.cpf.trim()) {
-      setFormError('Preencha nome e documento antes de confirmar.');
-      return;
-    }
-
-    if (modalContent === 'Cadastrar Novo Prestador') {
-      createAutonomo({
-        nome: formData.nome,
-        cpf: formData.cpf,
-        dep: Number(formData.dep) || 0,
-        repasse: 'R$ 0,00',
-        status: 'Ativo',
-        tenant: 'UFRJ',
+      const res = await fetch(url.toString(), {
+        headers: {
+          'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID',
+          'x-user-role': currentRole
+        }
       });
-      showToast('Novo prestador cadastrado.');
-    } else {
-      showToast('Dados do prestador atualizados.');
-    }
 
-    setModalContent(null);
-    setFormData({ nome: '', cpf: '', dep: '0' });
-    setFormError('');
-    setPage(1);
+      if (res.ok) {
+        const json = await res.json();
+        setData(json.data);
+        setTotalPages(json.meta.lastPage);
+        setTotalItems(json.meta.total);
+      } else {
+        addToast('Erro ao carregar profissionais', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Erro de comunicação com backend', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, statusFilter, appState.activeTenant, currentRole]);
+
+  useEffect(() => {
+    // Debounce na busca
+    const timeout = setTimeout(() => {
+      fetchAutonomos();
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [fetchAutonomos]);
+
+  const handleAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (modalType === 'CREATE') {
+      try {
+        const res = await fetch('http://localhost:3001/professionals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-tenant-id': 'UFRJ_ID', // Hardcoded seed param
+            'x-user-role': currentRole
+          },
+          body: JSON.stringify(formData)
+        });
+        if (res.ok) {
+          addToast('Profissional cadastrado!', 'success');
+          fetchAutonomos();
+          setModalType(null);
+        } else {
+          addToast(await res.text(), 'error');
+        }
+      } catch (e) {}
+    } else if (modalType === 'DEACTIVATE' || modalType === 'REACTIVATE') {
+      try {
+        const status = modalType === 'DEACTIVATE' ? 'INACTIVE' : 'ACTIVE';
+        const res = await fetch(`http://localhost:3001/professionals/${targetId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-tenant-id': 'UFRJ_ID',
+            'x-user-role': currentRole,
+            'x-user-id': 'USER_ID'
+          },
+          body: JSON.stringify({ status, reason })
+        });
+        if (res.ok) {
+          addToast(`Status alterado para ${status}`, 'success');
+          fetchAutonomos();
+          setModalType(null);
+          setReason('');
+        } else {
+          const err = await res.json();
+          addToast(err.message, 'error');
+        }
+      } catch (e) {}
+    }
+  };
+
+  const formatDocument = (doc: string) => {
+    // Mascara LGPD basica de CPF
+    return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '***.$2.$3-**');
   };
 
   return (
-    <div className="animate-fade-in relative">
-      {modalContent && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(9,30,66,0.5)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <div
-            className="animate-fade-in"
-            style={{
-              background: 'var(--bg-body)',
-              padding: '32px',
-              borderRadius: '12px',
-              width: '100%',
-              maxWidth: '500px',
-              boxShadow: 'var(--shadow-lg)',
-            }}
+    <div className="animate-fade-in relative min-h-screen">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Gestão de Autônomos</h2>
+          <p className="text-slate-500 mt-2">
+            Cadastre profissionais, acompanhe status transacionais e audite inativações.
+          </p>
+        </div>
+        
+        {currentRole !== 'AUDITOR' && (
+          <button
+            onClick={() => setModalType('CREATE')}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold shadow-sm transition-all focus:ring-4 focus:ring-indigo-100 flex items-center gap-2"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{modalContent}</h3>
-              <button
-                onClick={() => setModalContent(null)}
-                style={{ background: 'transparent', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                &times;
-              </button>
-            </div>
-            {modalContent !== 'Confirmar Inativação' && modalContent !== 'Confirmar Reativação' && (
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-                <input
-                  required
-                  type="text"
-                  value={formData.nome}
-                  onChange={(event) => {
-                    setFormData((current) => ({ ...current, nome: event.target.value }));
-                    if (formError) {
-                      setFormError('');
-                    }
-                  }}
-                  placeholder="Nome Completo / Razao Social"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
-                />
-                <input
-                  required
-                  type="text"
-                  value={formData.cpf}
-                  onChange={(event) => {
-                    setFormData((current) => ({ ...current, cpf: event.target.value }));
-                    if (formError) {
-                      setFormError('');
-                    }
-                  }}
-                  placeholder="Documento (CPF / CNPJ)"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
-                />
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  value={formData.dep}
-                  onChange={(event) => setFormData((current) => ({ ...current, dep: event.target.value }))}
-                  placeholder="Numero de Dependentes Legais"
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }}
-                />
-                {formError && <p style={{ color: 'var(--danger)', fontSize: '0.875rem' }}>{formError}</p>}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setModalContent(null)}
-                  style={{ padding: '10px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer' }}
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Novo Prestador
+          </button>
+        )}
+      </div>
+
+      {/* FILTER BAR SECTION */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 mb-6 items-center">
+        <div className="flex-1 w-full relative">
+          <svg className="absolute left-3 top-3 text-slate-400" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <input
+            type="text"
+            placeholder="Pesquisar por nome ou CPF..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow"
+          />
+        </div>
+        <div className="w-full md:w-auto">
+          <select 
+            value={statusFilter} 
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            className="w-full md:w-48 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          >
+            <option value="">Todos Status</option>
+            <option value="ACTIVE">Ativos</option>
+            <option value="INACTIVE">Inativos</option>
+          </select>
+        </div>
+      </div>
+
+      {/* TABLE SECTION */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-slate-400">Carregando lista de profissionais...</div>
+        ) : data.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-16 text-center">
+            <svg className="w-16 h-16 text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            <h3 className="text-lg font-medium text-slate-900">Nenhum profissional encontrado</h3>
+            <p className="text-sm text-slate-500 mt-1 max-w-sm">Ajuste os filtros de pesquisa acima ou adicione um novo prestador para começar a realizar pagamentos.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Profissional</th>
+                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Documento</th>
+                  <th className="py-4 px-6 text-sm font-semibold text-slate-600">Unidade</th>
+                  <th className="py-4 px-6 text-sm font-semibold text-slate-600 text-center">Status</th>
+                  <th className="py-4 px-6 text-sm font-semibold text-slate-600 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.map((prof) => (
+                  <tr key={prof.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="font-medium text-slate-800">{prof.name}</div>
+                      <div className="text-xs text-slate-500 mt-1">{prof.numDependents} dependentes legais</div>
+                    </td>
+                    <td className="py-4 px-6 text-slate-600 font-mono text-sm">{formatDocument(prof.document)}</td>
+                    <td className="py-4 px-6 text-slate-600">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                        {prof.tenant?.name || 'Não atribuída'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${prof.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                        {prof.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      {currentRole !== 'AUDITOR' && (
+                        <div className="flex items-center justify-end gap-2">
+                          {prof.status === 'ACTIVE' ? (
+                            <button
+                              onClick={() => { setTargetId(prof.id); setModalType('DEACTIVATE'); }}
+                              className="text-xs font-medium text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-3 py-1.5 rounded-md transition-colors"
+                              title={`Inativar Cadastro de ${prof.name}`}
+                              aria-label={`Inativar Cadastro de ${prof.name}`}
+                            >
+                              Inativar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setTargetId(prof.id); setModalType('REACTIVATE'); }}
+                              className="text-xs font-medium text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-md transition-colors"
+                              title={`Reativar Cadastro de ${prof.name}`}
+                              aria-label={`Reativar Cadastro de ${prof.name}`}
+                            >
+                              Reativar
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {/* Pagination Info */}
+        {!loading && totalPages > 0 && (
+          <div className="border-t border-slate-100 p-4 flex items-center justify-between bg-white text-sm">
+            <span className="text-slate-500">
+              Mostrando <span className="font-medium text-slate-900">{data.length}</span> de <span className="font-medium text-slate-900">{totalItems}</span> registros
+            </span>
+            {totalPages > 1 && (
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 border border-slate-200 rounded-md disabled:opacity-50 disabled:bg-slate-50 hover:bg-slate-50 font-medium text-slate-700 transition-colors"
                 >
-                  Descartar
+                  Anterior
                 </button>
-                <button
-                  type="submit"
-                  style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
+                <div className="px-3 py-1.5 font-medium text-slate-700">Página {page} de {totalPages}</div>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 border border-slate-200 rounded-md disabled:opacity-50 disabled:bg-slate-50 hover:bg-slate-50 font-medium text-slate-700 transition-colors"
                 >
-                  Confirmar Dados
+                  Próxima
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* MODALS TRANSACIONAIS */}
+      {modalType && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
+            
+            <div className={`p-6 border-b ${modalType === 'DEACTIVATE' ? 'border-rose-100 bg-rose-50/50' : modalType === 'REACTIVATE' ? 'border-emerald-100 bg-emerald-50/50' : 'border-slate-100'}`}>
+              <div className="flex justify-between items-center">
+                <h3 className={`text-lg font-bold ${modalType === 'DEACTIVATE' ? 'text-rose-800' : modalType === 'REACTIVATE' ? 'text-emerald-800' : 'text-slate-800'}`}>
+                  {modalType === 'CREATE' ? 'Cadastrar Prestador' : 
+                   modalType === 'DEACTIVATE' ? 'Confirmar Inativação' : 'Confirmar Reativação'}
+                </h3>
+                <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-600">
+                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleAction} className="p-6">
+              {modalType === 'CREATE' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+                    <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="João da Silva" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Documento (CPF)</label>
+                    <input required type="text" pattern="\d{11}" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Apenas números (11 dígitos)" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Dependentes Legais</label>
+                    <input required type="number" min="0" value={formData.numDependents} onChange={e => setFormData({...formData, numDependents: Number(e.target.value)})} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                  </div>
+                </div>
+              )}
+
+              {(modalType === 'DEACTIVATE' || modalType === 'REACTIVATE') && (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-600">
+                    A alteração do status cadastral será registrada na Trilha de Auditoria do sistema (Compliance/LGPD).
+                  </p>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Motivo / Parecer Obrigatório</label>
+                    <textarea 
+                      required 
+                      minLength={10}
+                      rows={4}
+                      value={reason} 
+                      onChange={e => setReason(e.target.value)} 
+                      className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" 
+                      placeholder="Ex: Desligamento por solicitação do prestador. Ref. Processo SEI 1234..."
+                    ></textarea>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button>
+                <button 
+                  type="submit" 
+                  className={`px-4 py-2 font-medium text-white rounded-lg transition-colors shadow-sm ${
+                    modalType === 'DEACTIVATE' ? 'bg-rose-600 hover:bg-rose-700' : 
+                    modalType === 'REACTIVATE' ? 'bg-emerald-600 hover:bg-emerald-700' : 
+                    'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {modalType === 'CREATE' ? 'Finalizar Cadastro' : 'Confirmar Registro'}
                 </button>
               </div>
             </form>
-            )}
-            {modalContent === 'Confirmar Inativação' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <p style={{ color: 'var(--text-main)', fontSize: '1rem' }}>
-                  A inativação de um autônomo bloqueia o lançamento de novos RPAs, mas garante preservação 5 anos conforme LGPD e base SRF. Confirma?
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                  <button
-                    onClick={() => {
-                      setModalContent(null);
-                      setTargetId(null);
-                    }}
-                    style={{ padding: '10px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Estornar
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--danger)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Sim, Inativar
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {modalContent === 'Confirmar Reativação' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <p style={{ color: 'var(--text-main)', fontSize: '1rem' }}>
-                  Este profissional retornará à base ativa e poderá receber novos processamentos de folha. Confirma?
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                  <button
-                    onClick={() => {
-                      setModalContent(null);
-                      setTargetId(null);
-                    }}
-                    style={{ padding: '10px 16px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--border-light)', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Estornar
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (targetId) {
-                        toggleAutonomoStatus(targetId, 'Ativo');
-                        addToast('Prestador reativado com sucesso.', 'success');
-                      }
-                      setModalContent(null);
-                      setTargetId(null);
-                    }}
-                    style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--success)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Sim, Reativar
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
-        <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>Gestão de Autônomos</h2>
-          <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>
-            Cadastre os profissionais, informações de INSS de outras fontes e deduções legais para processar o IRRF.
-          </p>
-        </div>
-        <button
-          onClick={openCreateModal}
-          style={{ background: 'linear-gradient(135deg, var(--primary), var(--secondary))', color: 'white', padding: '12px 24px', borderRadius: '8px', fontWeight: 600, boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', border: 'none' }}
-        >
-          <span>+</span> Novo Prestador
-        </button>
-      </div>
-
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <input
-          type="text"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Buscar profissional por nome, CPF ou status..."
-          style={{ width: '100%', maxWidth: '400px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-light)', fontSize: '0.875rem', outline: 'none' }}
-        />
-        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-          Mostrando {filteredDB.length} de {baseDB.length} registro(s)
-        </div>
-      </div>
-
-      <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
-          <thead>
-            <tr style={{ background: 'rgba(9, 30, 66, 0.02)' }}>
-              <th style={{ minWidth: '220px', padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Nome Completo</th>
-              <th style={{ minWidth: '150px', padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>CPF</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Status</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Unidade</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Dependentes</th>
-              <th style={{ padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem' }}>Repasses (2026)</th>
-              <th style={{ minWidth: '220px', padding: '16px 24px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.875rem', textAlign: 'right' }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentItems.map((item) => (
-              <tr key={item.id} className="hover-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td style={{ padding: '18px 24px', fontWeight: 600, color: 'var(--text-main)' }}>
-                  {item.nome}
-                </td>
-                <td style={{ padding: '18px 24px', color: 'var(--text-muted)' }}>{item.cpf}</td>
-                <td style={{ padding: '18px 24px' }}>
-                  <span style={{ 
-                    padding: '4px 8px', 
-                    borderRadius: '12px', 
-                    fontSize: '0.75rem', 
-                    background: item.status === 'Ativo' ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-surface)', 
-                    color: item.status === 'Ativo' ? 'var(--success)' : 'var(--text-muted)', 
-                    fontWeight: 600 
-                  }}>
-                    {item.status}
-                  </span>
-                </td>
-                <td style={{ padding: '18px 24px', color: 'var(--text-main)' }}>{item.tenant}</td>
-                <td style={{ padding: '18px 24px' }}>{item.dep}</td>
-                <td style={{ padding: '18px 24px', color: 'var(--success)', fontWeight: 500 }}>{item.repasse}</td>
-                <td style={{ padding: '18px 24px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                  <button
-                    onClick={() => {
-                        showToast('Em desenvolvimento: Redirecionará para /autonomos/' + item.id);
-                    }}
-                    style={{ color: 'var(--primary)', fontWeight: 600, marginRight: '16px', fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                  >
-                    Ver Ficha
-                  </button>
-                  <button
-                    onClick={() => {
-                      setModalContent(`Editando: ${item.nome}`);
-                      setFormData({ nome: item.nome, cpf: item.cpf, dep: String(item.dep) });
-                    }}
-                    style={{ color: 'var(--secondary)', fontWeight: 600, marginRight: '16px', fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                  >
-                    Editar
-                  </button>
-                  {item.status === 'Ativo' ? (
-                    <button onClick={() => handleDelete(item.id)} style={{ color: 'var(--danger)', fontWeight: 600, fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                      Desativar
-                    </button>
-                  ) : (
-                    <button onClick={() => { setTargetId(item.id); setModalContent('Confirmar Reativação'); }} style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                      Reativar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {currentItems.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  Nenhum autonomo encontrado com a busca atual.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Pagina {Math.max(1, page)} de {totalPages} (Mostrando {filteredDB.length} registros)
-          </span>
-          <div>
-            <button onClick={() => setPage((current) => Math.max(1, current - 1))} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', marginRight: '8px', background: 'var(--bg-surface)', cursor: 'pointer' }}>
-              Anterior
-            </button>
-            <button onClick={() => setPage((current) => Math.min(totalPages, current + 1))} style={{ padding: '8px 12px', border: '1px solid var(--border-light)', borderRadius: '6px', background: 'var(--bg-surface)', cursor: 'pointer' }}>
-              Proxima
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

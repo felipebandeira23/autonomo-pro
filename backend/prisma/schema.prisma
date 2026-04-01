@@ -21,6 +21,12 @@ enum PaymentStatus {
   REJECTED
 }
 
+enum UserRole {
+  CORP_ADMIN
+  UNIT_OPERATOR
+  AUDITOR
+}
+
 model Tenant {
   id        String   @id @default(uuid())
   name      String
@@ -39,10 +45,13 @@ model User {
   email     String   @unique
   name      String
   password  String?  // nullable if using Keycloak/LDAP exclusively
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  role      UserRole @default(UNIT_OPERATOR)
+  tenantId  String?  // nullable for CORP/AUDIT
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  auditLogs ProfessionalAuditLog[]
 }
 
 model Professional {
@@ -57,9 +66,49 @@ model Professional {
   tenantId       String
   tenant         Tenant   @relation(fields: [tenantId], references: [id])
   payments       Payment[]
+  
+  inssSources    ExternalInssSource[]
+  legalDeds      LegalDeduction[]
+  auditLogs      ProfessionalAuditLog[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model ExternalInssSource {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  companyName    String
+  cnpj           String
+  amount         Decimal  @db.Decimal(10, 2)
+  competence     String   // e.g. "02/2026"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model LegalDeduction {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  type           String   // e.g. ALIMONY, PENSION
+  amount         Decimal  @db.Decimal(10, 2)
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ProfessionalAuditLog {
+  id             String   @id @default(uuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  action         String   // e.g. DEACTIVATE, REACTIVATE, EDIT
+  reason         String?
+  performedById  String
+  performedBy    User     @relation(fields: [performedById], references: [id])
+  snapshotMap    Json?    // Snapshot of the previous state
+  createdAt      DateTime @default(now())
 }
 
 model TaxConfig {

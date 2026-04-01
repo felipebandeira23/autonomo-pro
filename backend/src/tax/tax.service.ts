@@ -35,7 +35,10 @@ export class TaxService {
     // Motor configurável de faixas (flexível para a antiga e a nova regra de 2026/MP)
     for (const bracket of brackets) {
       if (baseIrrf > bracket.min) {
-        let diff = (baseIrrf > (bracket.max || Infinity) ? bracket.max : baseIrrf) - bracket.min;
+        // cast bracket.max as number explicitamente para o Typescript não reclamar do ternário
+        let maxVal = bracket.max === null ? Infinity : bracket.max;
+        let limitToUse = baseIrrf > maxVal ? maxVal : baseIrrf;
+        let diff = limitToUse - bracket.min;
         if (diff > 0) irrfValue += diff * bracket.rate;
       }
     }

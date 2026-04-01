@@ -5,7 +5,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+const adapter = new PrismaPg(pool, { schema: 'autonomo' });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -28,9 +28,46 @@ async function main() {
   });
 
   // Limpando possível sujeira anterior devido ao uuid
+  await prisma.professionalAuditLog.deleteMany();
+  await prisma.legalDeduction.deleteMany();
+  await prisma.externalInssSource.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.taxConfig.deleteMany();
   await prisma.professional.deleteMany();
+  await prisma.user.deleteMany();
+
+  const userAdmin = await prisma.user.upsert({
+    where: { email: 'admin@corp.br' },
+    update: {},
+    create: {
+      name: 'Super Admin',
+      email: 'admin@corp.br',
+      role: 'CORP_ADMIN',
+      tenantId: null,
+    }
+  });
+
+  const userUfrj = await prisma.user.upsert({
+    where: { email: 'financeiro@ufrj.br' },
+    update: {},
+    create: {
+      name: 'Financeiro UFRJ',
+      email: 'financeiro@ufrj.br',
+      role: 'UNIT_OPERATOR',
+      tenantId: ufrj.id,
+    }
+  });
+
+  const userAuditor = await prisma.user.upsert({
+    where: { email: 'auditoria@gov.br' },
+    update: {},
+    create: {
+      name: 'Auditor Externo',
+      email: 'auditoria@gov.br',
+      role: 'AUDITOR',
+      tenantId: null,
+    }
+  });
 
   const config = await prisma.taxConfig.create({
     data: {
@@ -69,6 +106,39 @@ async function main() {
       numDependents: 0,
       tenantId: ufrj.id,
     }
+  });
+
+  await prisma.externalInssSource.create({
+    data: {
+      professionalId: prof1.id,
+      companyName: 'Empresa XYZ LTDA',
+      cnpj: '12345678000199',
+      amount: 450.00,
+      competence: '02/2026'
+    }
+  });
+
+  await prisma.legalDeduction.create({
+    data: {
+      professionalId: prof1.id,
+      type: 'ALIMONY',
+      amount: 300.00,
+      description: 'Pensao alimenticia judicial'
+    }
+  });
+
+  await prisma.professionalAuditLog.create({
+    data: {
+      professionalId: prof2.id,
+      action: 'DEACTIVATE',
+      reason: 'Solicitação de desligamento temporário - Processo 123/2026',
+      performedById: userUfrj.id,
+    }
+  });
+
+  await prisma.professional.update({
+    where: { id: prof2.id },
+    data: { status: 'INACTIVE' }
   });
 
   await prisma.payment.create({

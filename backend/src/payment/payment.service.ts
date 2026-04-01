@@ -19,6 +19,7 @@ export class PaymentService {
 
     const payment = await this.prisma.payment.create({
       data: {
+        code: `RPA-${Math.floor(Math.random() * 90000) + 10000}`,
         professionalId: data.professionalId,
         taxConfigId: data.taxConfigId,
         tenantId: prof.tenantId,
