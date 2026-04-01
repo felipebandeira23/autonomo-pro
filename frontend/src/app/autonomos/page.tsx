@@ -33,7 +33,14 @@ export default function Autonomos() {
   const [modalType, setModalType] = useState<'CREATE' | 'DEACTIVATE' | 'REACTIVATE' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
-  const [formData, setFormData] = useState({ name: '', document: '', numDependents: 0 });
+  const [formData, setFormData] = useState({ 
+    document: '', name: '', identity: '',
+    issuer: '', pisVoter: '', numDependents: 0,
+    gender: '', zip: '', address: '',
+    neighborhood: '', city: '', phone: '',
+    mobile: '', email: '', bank: '',
+    agency: '', account: '', tenantId: ''
+  });
   
   useEscapeToClose(Boolean(modalType), () => setModalType(null));
 
@@ -315,30 +322,110 @@ export default function Autonomos() {
 
       {modalType && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(9,30,66,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="animate-fade-in" style={{ background: 'var(--bg-body)', borderRadius: '12px', width: '100%', maxWidth: '500px', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--bg-body)', borderRadius: '12px', width: '100%', maxWidth: modalType === 'CREATE' ? '900px' : '500px', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid var(--border-light)', background: modalType === 'DEACTIVATE' ? 'rgba(222, 53, 11, 0.05)' : modalType === 'REACTIVATE' ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-surface)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: modalType === 'DEACTIVATE' ? 'var(--danger)' : modalType === 'REACTIVATE' ? 'var(--success)' : 'var(--text-main)' }}>
-                  {modalType === 'CREATE' ? 'Cadastrar Prestador' : modalType === 'DEACTIVATE' ? 'Confirmar Inativação' : 'Confirmar Reativação'}
+                  {modalType === 'CREATE' ? 'Cadastro de Fornecedor' : modalType === 'DEACTIVATE' ? 'Confirmar Inativação' : 'Confirmar Reativação'}
                 </h3>
                 <button onClick={() => setModalType(null)} style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>&times;</button>
               </div>
             </div>
 
-            <form onSubmit={handleAction} style={{ padding: '24px' }}>
+            <form onSubmit={handleAction} style={{ padding: '24px', maxHeight: '75vh', overflowY: 'auto' }}>
               {modalType === 'CREATE' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px 24px' }}>
+                  
+                  {/* Row 1 */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Nome Completo</label>
-                    <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="João da Silva" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>CPF: *</label>
+                    <input required type="text" pattern="\d{11}" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Documento (CPF)</label>
-                    <input required type="text" pattern="\d{11}" value={formData.document} onChange={e => setFormData({...formData, document: e.target.value})} placeholder="Apenas números (11 dígitos)" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Nome: *</label>
+                    <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Dependentes Legais</label>
-                    <input required type="number" min="0" value={formData.numDependents} onChange={e => setFormData({...formData, numDependents: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)', background: 'var(--bg-surface)' }} />
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Identidade:</label>
+                    <input type="text" value={formData.identity} onChange={e => setFormData({...formData, identity: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+
+                  {/* Row 2 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Órgão Emissor:</label>
+                    <input type="text" value={formData.issuer} onChange={e => setFormData({...formData, issuer: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>PIS/PASEP/NIT: *</label>
+                    <input required type="text" value={formData.pisVoter} onChange={e => setFormData({...formData, pisVoter: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Número de dependentes: *</label>
+                    <input required type="number" min="0" value={formData.numDependents} onChange={e => setFormData({...formData, numDependents: Number(e.target.value)})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+
+                  {/* Row 3 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Sexo: *</label>
+                    <select required value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'white' }}>
+                      <option value="">--selecione--</option>
+                      <option value="M">Masculino</option>
+                      <option value="F">Feminino</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>CEP: *</label>
+                    <input required type="text" value={formData.zip} onChange={e => setFormData({...formData, zip: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Endereço: *</label>
+                    <input required type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+
+                  {/* Row 4 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Bairro: *</label>
+                    <input required type="text" value={formData.neighborhood} onChange={e => setFormData({...formData, neighborhood: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Cidade: *</label>
+                    <input required type="text" value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Telefone:</label>
+                    <input type="text" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+
+                  {/* Row 5 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Celular:</label>
+                    <input type="text" value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Email:</label>
+                    <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Banco: *</label>
+                    <input required type="text" value={formData.bank} onChange={e => setFormData({...formData, bank: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+
+                  {/* Row 6 */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Agência: *</label>
+                    <input required type="text" value={formData.agency} onChange={e => setFormData({...formData, agency: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Conta: *</label>
+                    <input required type="text" value={formData.account} onChange={e => setFormData({...formData, account: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>Fundação: *</label>
+                    <select required value={formData.tenantId} onChange={e => setFormData({...formData, tenantId: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'white' }}>
+                      <option value="">--selecione--</option>
+                      <option value="UFRJ_ID_FAKE_SEED">Fundação Universitária (UFRJ)</option>
+                      <option value="COPPETEC_ID_FAKE">Fundação COPPETEC</option>
+                    </select>
                   </div>
                 </div>
               )}
@@ -359,18 +446,39 @@ export default function Autonomos() {
                 </div>
               )}
 
-              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button type="button" onClick={() => setModalType(null)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-light)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-main)' }}>Cancelar</button>
-                <button 
-                  type="submit" 
-                  style={{ 
-                    padding: '10px 16px', 
-                    background: modalType === 'DEACTIVATE' ? 'var(--danger)' : modalType === 'REACTIVATE' ? 'var(--success)' : 'var(--primary)', 
-                    border: 'none', color: 'white', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' 
-                  }}
-                >
-                  {modalType === 'CREATE' ? 'Finalizar Cadastro' : 'Confirmar Registro'}
-                </button>
+              <div style={{ marginTop: '32px', display: 'flex', gap: '12px', justifyContent: modalType === 'CREATE' ? 'flex-start' : 'flex-end', paddingTop: '16px', borderTop: modalType === 'CREATE' ? '1px solid var(--border-light)' : 'none' }}>
+                {modalType === 'CREATE' ? (
+                  <>
+                    <button 
+                      type="submit" 
+                      style={{ padding: '8px 24px', background: 'var(--primary)', border: '1px solid var(--primary)', color: 'white', borderRadius: '4px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Salvar
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setFormData({ document: '', name: '', identity: '', issuer: '', pisVoter: '', numDependents: 0, gender: '', zip: '', address: '', neighborhood: '', city: '', phone: '', mobile: '', email: '', bank: '', agency: '', account: '', tenantId: '' })} 
+                      style={{ padding: '8px 24px', background: 'white', border: '1px solid var(--border-light)', color: 'var(--text-main)', borderRadius: '4px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Limpar
+                    </button>
+                    <button type="button" onClick={() => setModalType(null)} style={{ padding: '8px 24px', background: 'transparent', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}>Fechar</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setModalType(null)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--border-light)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-main)' }}>Cancelar</button>
+                    <button 
+                      type="submit" 
+                      style={{ 
+                        padding: '10px 16px', 
+                        background: modalType === 'DEACTIVATE' ? 'var(--danger)' : 'var(--success)', 
+                        border: 'none', color: 'white', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' 
+                      }}
+                    >
+                      Confirmar Registro
+                    </button>
+                  </>
+                )}
               </div>
             </form>
           </div>

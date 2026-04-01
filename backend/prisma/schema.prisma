@@ -60,9 +60,24 @@ model Professional {
   id             String   @id @default(uuid())
   name           String
   document       String   @unique // CPF
-  email          String?
-  city           String?
+  identity       String?  // Identidade
+  issuer         String?  // Orgao Emissor
+  pisVoter       String?  // PIS/PASEP/NIT
   numDependents  Int      @default(0)
+  gender         String?  // Sexo
+  
+  zip            String?  // CEP
+  address        String?  // Endereco
+  neighborhood   String?  // Bairro
+  city           String?  // Cidade
+  phone          String?  // Telefone
+  mobile         String?  // Celular
+  email          String?  // Email
+
+  bank           String?  // Banco
+  agency         String?  // Agencia
+  account        String?  // Conta
+
   status         ProfessionalStatus @default(ACTIVE)
   
   tenantId       String
