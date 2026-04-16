@@ -11,14 +11,21 @@ import { ProfessionalsModule } from './professionals/professionals.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
-  imports: [PrismaModule, TaxModule, PdfModule, PaymentModule, ProfessionalsModule, DashboardModule],
+  imports: [
+    PrismaModule,
+    TaxModule,
+    PdfModule,
+    PaymentModule,
+    ProfessionalsModule,
+    DashboardModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,
     {
       provide: APP_GUARD,
       useClass: TenantAccessGuard,
-    }
+    },
   ],
 })
 export class AppModule {}

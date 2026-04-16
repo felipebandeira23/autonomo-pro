@@ -38,7 +38,9 @@ function safeNum(val: unknown): number {
 function buildDateRange(referencia: string): { start: Date; end: Date } {
   const [year, month] = referencia.split('-').map(Number);
   if (!year || !month || month < 1 || month > 12) {
-    throw new BadRequestException(`Referência inválida: "${referencia}". Use formato YYYY-MM.`);
+    throw new BadRequestException(
+      `Referência inválida: "${referencia}". Use formato YYYY-MM.`,
+    );
   }
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59, 999); // último dia do mês
@@ -49,13 +51,18 @@ function buildDateRange(referencia: string): { start: Date; end: Date } {
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDashboard(referencia: string, tenantId?: string, userRole?: string): Promise<DashboardDto> {
+  async getDashboard(
+    referencia: string,
+    tenantId?: string,
+    userRole?: string,
+  ): Promise<DashboardDto> {
     const { start, end } = buildDateRange(referencia);
 
     // Filtro de tenant: CORP_ADMIN e AUDITOR veem tudo
-    const tenantFilter = (userRole === 'CORP_ADMIN' || userRole === 'AUDITOR' || !tenantId)
-      ? {}
-      : { tenantId };
+    const tenantFilter =
+      userRole === 'CORP_ADMIN' || userRole === 'AUDITOR' || !tenantId
+        ? {}
+        : { tenantId };
 
     // ── Autônomos Ativos ──────────────────────────────────────
     const autonomosAtivos = await this.prisma.professional.count({
@@ -66,7 +73,14 @@ export class DashboardService {
     const refDate = new Date(start);
     refDate.setMonth(refDate.getMonth() - 1);
     const prevStart = new Date(refDate.getFullYear(), refDate.getMonth(), 1);
-    const prevEnd = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0, 23, 59, 59);
+    const prevEnd = new Date(
+      refDate.getFullYear(),
+      refDate.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
 
     const autonomosPrevAtivos = await this.prisma.professional.count({
       where: {
@@ -88,25 +102,30 @@ export class DashboardService {
     });
 
     // ── Agregações Seguras (nunca NaN) ────────────────────────
-    const valorBrutoRepassado = payments.reduce((acc, p) => acc + safeNum(p.grossValue), 0);
+    const valorBrutoRepassado = payments.reduce(
+      (acc, p) => acc + safeNum(p.grossValue),
+      0,
+    );
     const impostosRetidos = payments.reduce(
       (acc, p) => acc + safeNum(p.inssValue) + safeNum(p.irrfValue),
       0,
     );
 
     // ── Histórico Recente ─────────────────────────────────────
-    const historicoRecente: HistoricoItem[] = payments.slice(0, 10).map((p) => ({
-      id: p.id,
-      code: p.code,
-      profissional: p.professional?.name ?? 'Desconhecido',
-      bruto: safeNum(p.grossValue),
-      inss: safeNum(p.inssValue),
-      irrf: safeNum(p.irrfValue),
-      liquido: safeNum(p.netValue),
-      status: p.status ?? 'DRAFT',
-      data: p.paymentDate?.toISOString().split('T')[0] ?? '',
-      tenantId: p.tenantId,
-    }));
+    const historicoRecente: HistoricoItem[] = payments
+      .slice(0, 10)
+      .map((p) => ({
+        id: p.id,
+        code: p.code,
+        profissional: p.professional?.name ?? 'Desconhecido',
+        bruto: safeNum(p.grossValue),
+        inss: safeNum(p.inssValue),
+        irrf: safeNum(p.irrfValue),
+        liquido: safeNum(p.netValue),
+        status: p.status ?? 'DRAFT',
+        data: p.paymentDate?.toISOString().split('T')[0] ?? '',
+        tenantId: p.tenantId,
+      }));
 
     // ── Em Análise ────────────────────────────────────────────
     const lancamentosEmAnalise = await this.prisma.payment.count({
@@ -127,7 +146,7 @@ export class DashboardService {
       },
     });
     const totalGuiasPendentes =
-      (!tenantId || tenantId === '' || tenantId.includes('ufrj'))
+      !tenantId || tenantId === '' || tenantId.includes('ufrj')
         ? 14 + rejectUfrj
         : 0;
 

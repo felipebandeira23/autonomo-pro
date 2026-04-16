@@ -12,12 +12,17 @@ export interface TaxBracket {
 export class TaxService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculate(grossValue: number, taxConfigId: string, dependentCount: number) {
+  async calculate(
+    grossValue: number,
+    taxConfigId: string,
+    dependentCount: number,
+  ) {
     const config = await this.prisma.taxConfig.findUnique({
-      where: { id: taxConfigId }
+      where: { id: taxConfigId },
     });
-    
-    if (!config) throw new NotFoundException('Configuração fiscal não encontrada.');
+
+    if (!config)
+      throw new NotFoundException('Configuração fiscal não encontrada.');
 
     // Cálculo INSS com trava configurável
     let inssValue = grossValue * Number(config.inssRate);
@@ -26,19 +31,22 @@ export class TaxService {
     }
 
     // Base IRRF = Bruto - INSS - (Dependentes * DeducaoDependente)
-    let baseIrrf = grossValue - inssValue - (dependentCount * Number(config.dependentDeduction));
+    let baseIrrf =
+      grossValue -
+      inssValue -
+      dependentCount * Number(config.dependentDeduction);
     if (baseIrrf < 0) baseIrrf = 0;
 
     let irrfValue = 0;
     const brackets = config.irrfBrackets as unknown as TaxBracket[];
-    
+
     // Motor configurável de faixas (flexível para a antiga e a nova regra de 2026/MP)
     for (const bracket of brackets) {
       if (baseIrrf > bracket.min) {
         // cast bracket.max as number explicitamente para o Typescript não reclamar do ternário
-        let maxVal = bracket.max === null ? Infinity : bracket.max;
-        let limitToUse = baseIrrf > maxVal ? maxVal : baseIrrf;
-        let diff = limitToUse - bracket.min;
+        const maxVal = bracket.max === null ? Infinity : bracket.max;
+        const limitToUse = baseIrrf > maxVal ? maxVal : baseIrrf;
+        const diff = limitToUse - bracket.min;
         if (diff > 0) irrfValue += diff * bracket.rate;
       }
     }
@@ -52,7 +60,7 @@ export class TaxService {
       grossValue: Number(grossValue.toFixed(2)),
       inssValue: Number(inssValue.toFixed(2)),
       irrfValue: Number(irrfValue.toFixed(2)),
-      netValue: Number(netValue.toFixed(2))
+      netValue: Number(netValue.toFixed(2)),
     };
   }
 }

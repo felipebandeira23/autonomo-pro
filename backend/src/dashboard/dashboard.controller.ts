@@ -1,4 +1,10 @@
-import { Controller, Get, Query, Headers, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Headers,
+  BadRequestException,
+} from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 
 @Controller('dashboard')
@@ -20,7 +26,9 @@ export class DashboardController {
     @Headers('x-user-role') userRole: string,
   ) {
     if (!referencia) {
-      throw new BadRequestException('Parâmetro "referencia" obrigatório (ex: 2026-02)');
+      throw new BadRequestException(
+        'Parâmetro "referencia" obrigatório (ex: 2026-02)',
+      );
     }
 
     // Validação de formato YYYY-MM

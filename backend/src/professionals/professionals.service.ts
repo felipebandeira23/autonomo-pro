@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, ProfessionalStatus, UserRole } from '@prisma/client';
 
@@ -6,7 +11,14 @@ import { Prisma, ProfessionalStatus, UserRole } from '@prisma/client';
 export class ProfessionalsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(tenantId: string, role: string, search?: string, status?: string, page = 1, limit = 10) {
+  async findAll(
+    tenantId: string,
+    role: string,
+    search?: string,
+    status?: string,
+    page = 1,
+    limit = 10,
+  ) {
     const skip = (page - 1) * limit;
 
     const whereClause: Prisma.ProfessionalWhereInput = {};
@@ -18,8 +30,13 @@ export class ProfessionalsService {
 
     if (search) {
       whereClause.OR = [
-        { name: { contains: search, mode: 'insensitive' } as Prisma.StringFilter },
-        { document: { contains: search } }
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          } as Prisma.StringFilter,
+        },
+        { document: { contains: search } },
       ];
     }
 
@@ -33,11 +50,11 @@ export class ProfessionalsService {
         skip,
         take: limit,
         include: {
-          tenant: { select: { name: true } }
+          tenant: { select: { name: true } },
         },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
       }),
-      this.prisma.professional.count({ where: whereClause })
+      this.prisma.professional.count({ where: whereClause }),
     ]);
 
     return {
@@ -45,8 +62,8 @@ export class ProfessionalsService {
       meta: {
         total,
         page,
-        lastPage: Math.ceil(total / limit)
-      }
+        lastPage: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -58,23 +75,30 @@ export class ProfessionalsService {
         legalDeds: true,
         auditLogs: {
           include: { performedBy: { select: { name: true, role: true } } },
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     if (!professional) {
       throw new NotFoundException('Profissional não encontrado');
     }
 
-    if (role !== 'CORP_ADMIN' && role !== 'AUDITOR' && professional.tenantId !== tenantId) {
+    if (
+      role !== 'CORP_ADMIN' &&
+      role !== 'AUDITOR' &&
+      professional.tenantId !== tenantId
+    ) {
       throw new ForbiddenException('Acesso negado a este recurso.');
     }
 
     return professional;
   }
 
-  async create(data: Prisma.ProfessionalUncheckedCreateInput, userRole: string) {
+  async create(
+    data: Prisma.ProfessionalUncheckedCreateInput,
+    userRole: string,
+  ) {
     if (userRole === 'AUDITOR') {
       throw new ForbiddenException('Auditores não podem criar registros.');
     }
@@ -82,12 +106,12 @@ export class ProfessionalsService {
   }
 
   async updateStatus(
-    id: string, 
-    status: ProfessionalStatus, 
-    reason: string, 
-    userId: string, 
+    id: string,
+    status: ProfessionalStatus,
+    reason: string,
+    userId: string,
     userRole: string,
-    tenantId: string
+    tenantId: string,
   ) {
     if (userRole === 'AUDITOR') {
       throw new ForbiddenException('Auditores não podem alterar status.');
@@ -97,8 +121,11 @@ export class ProfessionalsService {
       throw new BadRequestException('Motivo obrigatório e deve ser detalhado.');
     }
 
-    const professional = await this.prisma.professional.findUnique({ where: { id } });
-    if (!professional) throw new NotFoundException('Profissional não encontrado');
+    const professional = await this.prisma.professional.findUnique({
+      where: { id },
+    });
+    if (!professional)
+      throw new NotFoundException('Profissional não encontrado');
 
     if (userRole !== 'CORP_ADMIN' && professional.tenantId !== tenantId) {
       throw new ForbiddenException('Você não tem permissão neste tenant.');
@@ -111,7 +138,7 @@ export class ProfessionalsService {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.professional.update({
         where: { id },
-        data: { status }
+        data: { status },
       });
 
       await tx.professionalAuditLog.create({
@@ -120,8 +147,8 @@ export class ProfessionalsService {
           action: status === 'ACTIVE' ? 'REACTIVATE' : 'DEACTIVATE',
           reason,
           performedById: userId,
-          snapshotMap: professional as unknown as Prisma.JsonObject
-        }
+          snapshotMap: professional as unknown as Prisma.JsonObject,
+        },
       });
 
       return updated;

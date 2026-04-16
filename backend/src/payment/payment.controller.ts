@@ -19,17 +19,17 @@ export class PaymentController {
   @Get(':id/receipt')
   async downloadReceipt(@Param('id') id: string, @Res() res: Response) {
     try {
-        const pdfBuffer = await this.paymentService.generateReceipt(id);
-        
-        res.set({
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename=recibo-autonomo-${id}.pdf`,
-          'Content-Length': pdfBuffer.length,
-        });
+      const pdfBuffer = await this.paymentService.generateReceipt(id);
 
-        res.end(pdfBuffer);
-    } catch(err: any) {
-        res.status(500).json({ error: err.message });
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=recibo-autonomo-${id}.pdf`,
+        'Content-Length': pdfBuffer.length,
+      });
+
+      res.end(pdfBuffer);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   }
 }
