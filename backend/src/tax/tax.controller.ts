@@ -26,7 +26,9 @@ export class TaxController {
       ? parsedYear
       : new Date().getFullYear();
     if (year < 2000 || year > 2100) {
-      throw new BadRequestException('Parâmetro year deve estar entre 2000 e 2100.');
+      throw new BadRequestException(
+        'Parâmetro year deve estar entre 2000 e 2100.',
+      );
     }
     const targetTenant = tenantId || 'seed-tenant-ufrj';
 
@@ -83,7 +85,8 @@ export class TaxController {
           inssRate: payload.inssRate,
           inssCeiling: payload.inssCeiling,
           dependentDeduction: payload.dependentDeduction,
-          irrfBrackets: payload.irrfBrackets as unknown as Prisma.InputJsonValue,
+          irrfBrackets:
+            payload.irrfBrackets as unknown as Prisma.InputJsonValue,
         },
       });
     }

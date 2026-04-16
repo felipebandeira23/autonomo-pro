@@ -26,7 +26,9 @@ export class ProfessionalsController {
     @Query() query: ListProfessionalsQueryDto,
   ) {
     if (tenantId === undefined || !role) {
-      throw new BadRequestException('Faltando headers de autenticação contextual.');
+      throw new BadRequestException(
+        'Faltando headers de autenticação contextual.',
+      );
     }
 
     return this.appService.findAll(

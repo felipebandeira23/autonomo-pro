@@ -1,4 +1,12 @@
-import { IsEmail, IsInt, IsOptional, IsString, IsUUID, Matches, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Min,
+} from 'class-validator';
 
 export class CreateProfessionalDto {
   @IsString()
