@@ -19,6 +19,17 @@ export class PaymentService {
     private readonly pdfService: PdfService,
   ) {}
 
+  private async generateUniquePaymentCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const code = `RPA-${Math.floor(Math.random() * 90000) + 10000}`;
+      const existing = await this.prisma.payment.findUnique({ where: { code } });
+      if (!existing) {
+        return code;
+      }
+    }
+    return `RPA-${Date.now()}`;
+  }
+
   async createPayment(data: CreatePaymentDto) {
     const prof = await this.prisma.professional.findUnique({
       where: { id: data.professionalId },
@@ -36,9 +47,11 @@ export class PaymentService {
       prof.numDependents,
     );
 
+    const code = await this.generateUniquePaymentCode();
+
     return this.prisma.payment.create({
       data: {
-        code: `RPA-${Math.floor(Math.random() * 90000) + 10000}`,
+        code,
         professionalId: data.professionalId,
         taxConfigId: data.taxConfigId,
         tenantId: prof.tenantId,
@@ -121,6 +134,19 @@ export class PaymentService {
     return payment;
   }
 
+  private async getPaymentForReceiptOrThrow(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { professional: true, tenant: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pagamento inexistente no sistema.');
+    }
+
+    return payment;
+  }
+
   private async transitionStatus(
     id: string,
     from: PaymentStatus,
@@ -156,14 +182,7 @@ export class PaymentService {
   }
 
   async generateReceipt(paymentId: string) {
-    const payment = await this.prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: { professional: true, tenant: true },
-    });
-
-    if (!payment) {
-      throw new NotFoundException('Pagamento inexistente no sistema.');
-    }
+    const payment = await this.getPaymentForReceiptOrThrow(paymentId);
 
     const htmlContent = `
       <html>

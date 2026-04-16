@@ -25,6 +25,9 @@ export class TaxController {
     const year = Number.isFinite(parsedYear)
       ? parsedYear
       : new Date().getFullYear();
+    if (year < 2000 || year > 2100) {
+      throw new BadRequestException('Parâmetro year deve estar entre 2000 e 2100.');
+    }
     const targetTenant = tenantId || 'seed-tenant-ufrj';
 
     let config = await this.prisma.taxConfig.findFirst({

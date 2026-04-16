@@ -13,17 +13,19 @@ export class UsersService {
       throw new ForbiddenException('AUDITOR não pode criar usuários.');
     }
 
+    let targetTenantId = data.tenantId ?? null;
+
     if (currentRole === 'UNIT_OPERATOR') {
       if (!currentTenantId) {
         throw new ForbiddenException('Tenant inválido para operação.');
       }
-      if (data.tenantId && data.tenantId !== currentTenantId) {
+      if (targetTenantId && targetTenantId !== currentTenantId) {
         throw new ForbiddenException('UNIT_OPERATOR só pode criar usuário no próprio tenant.');
       }
       if (data.role === 'CORP_ADMIN') {
         throw new ForbiddenException('UNIT_OPERATOR não pode criar CORP_ADMIN.');
       }
-      data.tenantId = currentTenantId;
+      targetTenantId = currentTenantId;
     }
 
     return this.prisma.user.create({
@@ -32,7 +34,7 @@ export class UsersService {
         email: data.email,
         password: data.password,
         role: data.role,
-        tenantId: data.tenantId ?? null,
+        tenantId: targetTenantId,
       },
     });
   }

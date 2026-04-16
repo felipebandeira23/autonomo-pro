@@ -50,6 +50,9 @@ function buildDateRange(referencia: string): { start: Date; end: Date } {
 
 @Injectable()
 export class DashboardService {
+  // Requisito do endpoint: expor os últimos 5 pagamentos no consolidado.
+  private static readonly RECENT_HISTORY_LIMIT = 5;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard(
@@ -114,7 +117,7 @@ export class DashboardService {
 
     // ── Histórico Recente ─────────────────────────────────────
     const historicoRecente: HistoricoItem[] = payments
-      .slice(0, 5)
+      .slice(0, DashboardService.RECENT_HISTORY_LIMIT)
       .map((p) => ({
         id: p.id,
         code: p.code,

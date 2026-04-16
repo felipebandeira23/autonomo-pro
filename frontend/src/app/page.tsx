@@ -15,6 +15,7 @@ import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SkeletonCard, SkeletonRow } from '@/components/SkeletonCard';
 import { useDashboard } from '@/lib/use-api';
+import { mapTenantIdToViewKey } from '@/lib/tenant-utils';
 
 // ───────────────────────────────────────────────────────────
 // Helpers
@@ -479,7 +480,7 @@ function DashboardContent() {
         nome: item.profissional,
         cpf: '***.***.***-**',
         convenio: 'N/D',
-        tenantId: (item.tenantId.includes('coppetec') ? 'coppetec' : 'ufrj') as 'ufrj' | 'coppetec',
+        tenantId: mapTenantIdToViewKey(item.tenantId),
         bruto: formatCurrency(item.bruto),
         liquido: formatCurrency(item.liquido),
         deducaoinss: Number(item.inss || 0).toFixed(2).replace('.', ','),

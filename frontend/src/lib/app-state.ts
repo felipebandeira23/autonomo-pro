@@ -61,6 +61,15 @@ const defaultState: AppState = {
 let state: AppState = defaultState;
 const listeners = new Set<() => void>();
 let hydrated = false;
+let fallbackIdCounter = 0;
+
+function createClientId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  fallbackIdCounter += 1;
+  return `${Date.now()}-${fallbackIdCounter}`;
+}
 
 function notify() {
   listeners.forEach((listener) => listener());
@@ -198,7 +207,7 @@ export function setLoggedIn(status: boolean) {
 
 export function addAuditLog(targetId: string, action: string, details: string) {
   const log: AuditLog = {
-    id: Math.random().toString(36).substring(2, 9),
+    id: createClientId(),
     timestamp: new Date().toISOString(),
     targetId,
     action,
@@ -284,7 +293,7 @@ export function updateTenant(tenantId: string, updates: Partial<typeof tenantSum
 }
 
 export function addToast(message: string, type: ToastMessage['type'] = 'info') {
-  const id = Math.random().toString(36).substring(2, 9);
+  const id = createClientId();
   state = {
     ...state,
     toasts: [...state.toasts, { id, message, type }],

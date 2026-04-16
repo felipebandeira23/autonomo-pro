@@ -7,6 +7,7 @@ import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { getPaymentStatusMeta } from '@/lib/mock-data';
 import { addToast } from '@/lib/app-state';
 import { usePayments } from '@/lib/use-api';
+import { mapTenantIdToViewKey } from '@/lib/tenant-utils';
 
 const tabs = [
   { id: 'todos', label: 'Todos Lançamentos' },
@@ -49,7 +50,7 @@ export default function Pagamentos() {
           nome: payment.professional?.name || 'Profissional',
           cpf: payment.professional?.document || '***.***.***-**',
           convenio: payment.convenio || 'N/D',
-          tenantId: (payment.tenantId.includes('coppetec') ? 'coppetec' : 'ufrj') as 'ufrj' | 'coppetec',
+          tenantId: mapTenantIdToViewKey(payment.tenantId),
           bruto: toCurrency(payment.grossValue),
           liquido: toCurrency(payment.netValue),
           deducaoinss: Number(payment.inssValue || 0).toFixed(2).replace('.', ','),
