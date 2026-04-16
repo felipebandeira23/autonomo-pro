@@ -8,14 +8,29 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly taxService: TaxService,
-    private readonly pdfService: PdfService
+    private readonly pdfService: PdfService,
   ) {}
 
-  async createPayment(data: { professionalId: string, taxConfigId: string, grossValue: number, competence: string, paymentDate: string }) {
-    const prof = await this.prisma.professional.findUnique({ where: { id: data.professionalId } });
-    if (!prof) throw new NotFoundException('Autônomo não encontrado no cadastro base do Governo.');
+  async createPayment(data: {
+    professionalId: string;
+    taxConfigId: string;
+    grossValue: number;
+    competence: string;
+    paymentDate: string;
+  }) {
+    const prof = await this.prisma.professional.findUnique({
+      where: { id: data.professionalId },
+    });
+    if (!prof)
+      throw new NotFoundException(
+        'Autônomo não encontrado no cadastro base do Governo.',
+      );
 
-    const result = await this.taxService.calculate(data.grossValue, data.taxConfigId, prof.numDependents);
+    const result = await this.taxService.calculate(
+      data.grossValue,
+      data.taxConfigId,
+      prof.numDependents,
+    );
 
     const payment = await this.prisma.payment.create({
       data: {
@@ -28,8 +43,8 @@ export class PaymentService {
         grossValue: result.grossValue,
         inssValue: result.inssValue,
         irrfValue: result.irrfValue,
-        netValue: result.netValue
-      }
+        netValue: result.netValue,
+      },
     });
 
     return payment;
@@ -38,17 +53,18 @@ export class PaymentService {
   async getAllPayments() {
     return this.prisma.payment.findMany({
       include: { professional: true, taxConfig: true },
-      orderBy: { paymentDate: 'desc' }
+      orderBy: { paymentDate: 'desc' },
     });
   }
 
   async generateReceipt(paymentId: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { professional: true, tenant: true }
+      include: { professional: true, tenant: true },
     });
-    
-    if (!payment) throw new NotFoundException('Pagamento inexistente no sistema.');
+
+    if (!payment)
+      throw new NotFoundException('Pagamento inexistente no sistema.');
 
     // Design System do Recibo de Pagamento Autônomo com Identidade Corporativa
     const htmlContent = `

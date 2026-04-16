@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Headers, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
+  Headers,
+  BadRequestException,
+} from '@nestjs/common';
 import { ProfessionalsService } from './professionals.service';
 import { Prisma, ProfessionalStatus } from '@prisma/client';
 
@@ -13,16 +23,19 @@ export class ProfessionalsController {
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('page') page?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
-    if (tenantId === undefined || !role) throw new BadRequestException('Faltando headers de autenticação contextual.');
+    if (tenantId === undefined || !role)
+      throw new BadRequestException(
+        'Faltando headers de autenticação contextual.',
+      );
     return this.appService.findAll(
-      tenantId, 
-      role.toUpperCase(), 
-      search, 
-      status, 
-      page ? parseInt(page) : 1, 
-      limit ? parseInt(limit) : 10
+      tenantId,
+      role.toUpperCase(),
+      search,
+      status,
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
     );
   }
 
@@ -30,7 +43,7 @@ export class ProfessionalsController {
   async findOne(
     @Param('id') id: string,
     @Headers('x-tenant-id') tenantId: string,
-    @Headers('x-user-role') role: string
+    @Headers('x-user-role') role: string,
   ) {
     return this.appService.findOne(id, tenantId, role.toUpperCase());
   }
@@ -39,9 +52,10 @@ export class ProfessionalsController {
   async create(
     @Headers('x-tenant-id') tenantId: string,
     @Headers('x-user-role') role: string,
-    @Body() payload: Prisma.ProfessionalUncheckedCreateInput
+    @Body() payload: Prisma.ProfessionalUncheckedCreateInput,
   ) {
-    if (tenantId === undefined) throw new BadRequestException('Tenant ausente.');
+    if (tenantId === undefined)
+      throw new BadRequestException('Tenant ausente.');
     payload.tenantId = payload.tenantId || tenantId; // Override fallback
     return this.appService.create(payload, role.toUpperCase());
   }
@@ -52,9 +66,17 @@ export class ProfessionalsController {
     @Headers('x-user-id') userId: string,
     @Headers('x-user-role') userRole: string,
     @Headers('x-tenant-id') tenantId: string,
-    @Body() payload: { status: ProfessionalStatus, reason: string }
+    @Body() payload: { status: ProfessionalStatus; reason: string },
   ) {
-    if (!userId || !userRole || tenantId === undefined) throw new BadRequestException('Sessão inválida para ação destrutiva');
-    return this.appService.updateStatus(id, payload.status, payload.reason, userId, userRole.toUpperCase(), tenantId);
+    if (!userId || !userRole || tenantId === undefined)
+      throw new BadRequestException('Sessão inválida para ação destrutiva');
+    return this.appService.updateStatus(
+      id,
+      payload.status,
+      payload.reason,
+      userId,
+      userRole.toUpperCase(),
+      tenantId,
+    );
   }
 }
