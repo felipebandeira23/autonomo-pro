@@ -5,7 +5,61 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+type JwtRequestUser = {
+  sub?: string;
+  role?: string;
+  tenantId?: string | null;
+  tenant_id?: string | null;
+  realm_access?: { roles?: string[] };
+};
+
+function getSingleHeaderValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+  return value ?? '';
+}
+
+function mapSystemRole(role?: string): UserRole | null {
+  if (!role) {
+    return null;
+  }
+
+  const normalized = role.trim().toUpperCase();
+  const roleMap: Record<string, UserRole> = {
+    CORP_ADMIN: 'CORP_ADMIN',
+    UNIT_OPERATOR: 'UNIT_OPERATOR',
+    AUDITOR: 'AUDITOR',
+    ADMIN: 'CORP_ADMIN',
+    FINANCEIRO: 'UNIT_OPERATOR',
+    AUDITORIA: 'AUDITOR',
+  };
+  return roleMap[normalized] ?? null;
+}
+
+function mapKeycloakRole(roles?: string[]): UserRole | null {
+  if (!roles?.length) {
+    return null;
+  }
+
+  const roleMap: Record<string, UserRole> = {
+    corp_admin: 'CORP_ADMIN',
+    unit_operator: 'UNIT_OPERATOR',
+    auditor: 'AUDITOR',
+  };
+
+  for (const role of roles) {
+    const mapped = roleMap[role.toLowerCase()];
+    if (mapped) {
+      return mapped;
+    }
+  }
+
+  return null;
+}
 
 @Injectable()
 export class TenantAccessGuard implements CanActivate {
@@ -13,22 +67,35 @@ export class TenantAccessGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    const requestPath = request.path as string;
 
-    // Simplificando o JWT extract para fins deste protótipo.
-    // Em cenário real, isso viria de req.user anexado por um strategy Passport JWT/LDAP.
-    let userId = request.headers['x-user-id'];
-    const requestedTenantId = request.headers['x-tenant-id'];
-    const userRoleStr = request.headers['x-user-role'] || 'CORP_ADMIN';
-    const requestPath = request.path;
+    if (requestPath === '/auth/login' || requestPath === '/auth/login/') {
+      return true;
+    }
 
-    // Backward compat p/ frontend q ainda não manda token real, resolve pelo PRIMEIRO user da Role
+    const jwtUser = request.user as JwtRequestUser | undefined;
+    let userId = '';
+    let requestedTenantId = '';
+    let tokenRole: UserRole | null = null;
+
+    if (jwtUser?.sub) {
+      userId = jwtUser.sub;
+      requestedTenantId = (jwtUser.tenant_id ?? jwtUser.tenantId ?? '').trim();
+      tokenRole =
+        mapKeycloakRole(jwtUser.realm_access?.roles) ??
+        mapSystemRole(jwtUser.role);
+    } else {
+      userId = getSingleHeaderValue(request.headers['x-user-id']).trim();
+      requestedTenantId = getSingleHeaderValue(
+        request.headers['x-tenant-id'],
+      ).trim();
+      tokenRole = mapSystemRole(
+        getSingleHeaderValue(request.headers['x-user-role']),
+      );
+    }
+
     if (!userId) {
-      const fallbackUser = await this.prisma.user.findFirst({
-        where: { role: userRoleStr },
-      });
-      if (!fallbackUser)
-        throw new UnauthorizedException('Perfil de Semente Não Encontrado.');
-      userId = fallbackUser.id;
+      throw new UnauthorizedException('Usuário não informado na requisição.');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -39,12 +106,18 @@ export class TenantAccessGuard implements CanActivate {
       throw new UnauthorizedException('Usuário não localizado no banco.');
     }
 
+    if (tokenRole && tokenRole !== user.role) {
+      throw new ForbiddenException(
+        'Perfil do token divergente do perfil local.',
+      );
+    }
+
     // Role Enforcement (Global/Corp)
     if (user.role === 'CORP_ADMIN') {
       // Como CORP_ADMIN, eu logo e passo direto em qlqr endpoint.
       await this.auditAccess(
         user.id,
-        requestedTenantId,
+        requestedTenantId || user.tenantId,
         requestPath,
         'GLOBAL_ACCESS_OVERRIDE',
       );

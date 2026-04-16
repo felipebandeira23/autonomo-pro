@@ -2,7 +2,40 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setApiConnection, setLoggedIn, setActiveTenant, setRole } from '@/lib/app-state';
+import { api } from '@/lib/api';
+import {
+  setApiConnection,
+  setLoggedIn,
+  setActiveTenant,
+  setRole,
+  setToken,
+} from '@/lib/app-state';
+
+type BackendRole = 'CORP_ADMIN' | 'UNIT_OPERATOR' | 'AUDITOR';
+type LoginTokenPayload = {
+  sub?: string;
+  role?: BackendRole;
+  tenantId?: string | null;
+};
+
+function decodeJwtPayload(token: string): LoginTokenPayload {
+  const parts = token.split('.');
+  if (parts.length < 2) return {};
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(window.atob(`${base64}${padding}`)) as LoginTokenPayload;
+  } catch {
+    return {};
+  }
+}
+
+function mapBackendRoleToFrontend(role?: BackendRole) {
+  if (role === 'UNIT_OPERATOR') return 'financeiro' as const;
+  if (role === 'AUDITOR') return 'auditoria' as const;
+  return 'admin' as const;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,10 +43,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
+  const runMockLogin = () => {
     setTimeout(() => {
       // Mock logic: Se email conter auditoria, loga como auditor
       if (email.includes('audita')) {
@@ -27,9 +57,45 @@ export default function LoginPage() {
       }
 
       setLoggedIn(true);
+      setToken(null);
       setApiConnection(false, '', '');
       router.push('/');
     }, 800);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { access_token } = await api.login(email, password);
+      const payload = decodeJwtPayload(access_token);
+      const frontendRole = mapBackendRoleToFrontend(payload.role);
+      const tenantId = payload.tenantId ?? '';
+      const userId = payload.sub ?? '';
+
+      setToken(access_token);
+      setRole(frontendRole);
+      setActiveTenant(frontendRole === 'financeiro' ? 'ufrj' : 'corp');
+      setApiConnection(true, tenantId, userId);
+      setLoggedIn(true);
+      router.push('/');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro ao autenticar';
+      const shouldFallbackToMock =
+        message.includes('Failed to fetch') ||
+        message.includes('NetworkError') ||
+        message.includes('ECONNREFUSED') ||
+        message.includes('API Error 404');
+
+      if (shouldFallbackToMock) {
+        runMockLogin();
+        return;
+      }
+
+      setIsLoading(false);
+      alert(message);
+    }
   };
 
   const handleSSO = () => {
@@ -38,6 +104,7 @@ export default function LoginPage() {
       setRole('admin');
       setActiveTenant('corp');
       setLoggedIn(true);
+      setToken(null);
       setApiConnection(false, '', '');
       router.push('/');
     }, 1200);
