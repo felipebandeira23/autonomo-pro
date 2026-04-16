@@ -1,14 +1,16 @@
 import {
-  Controller,
-  Get,
-  Put,
-  Body,
-  Headers,
   BadRequestException,
+  Body,
+  Controller,
   ForbiddenException,
+  Get,
+  Headers,
+  Put,
   Query,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateTaxConfigDto } from './dto/update-tax-config.dto';
 
 @Controller('tax')
 export class TaxController {
@@ -19,8 +21,13 @@ export class TaxController {
     @Headers('x-tenant-id') tenantId: string,
     @Query('year') yearParam?: string,
   ) {
-    const year = yearParam ? parseInt(yearParam) : new Date().getFullYear();
-    // Se o frontend enviar empty (CORP_ADMIN) vamos pegar a master config
+    const parsedYear = Number(yearParam);
+    const year = Number.isFinite(parsedYear)
+      ? parsedYear
+      : new Date().getFullYear();
+    if (year < 2000 || year > 2100) {
+      throw new BadRequestException('Parâmetro year deve estar entre 2000 e 2100.');
+    }
     const targetTenant = tenantId || 'seed-tenant-ufrj';
 
     let config = await this.prisma.taxConfig.findFirst({
@@ -46,6 +53,7 @@ export class TaxController {
         ],
       };
     }
+
     return config;
   }
 
@@ -53,9 +61,9 @@ export class TaxController {
   async updateConfig(
     @Headers('x-tenant-id') tenantId: string,
     @Headers('x-user-role') role: string,
-    @Body() payload: any,
+    @Body() payload: UpdateTaxConfigDto,
   ) {
-    if (role === 'AUDITOR') {
+    if ((role ?? '').toUpperCase() === 'AUDITOR') {
       throw new ForbiddenException(
         'Perfil sem permissao para alterar metas tributarias.',
       );
@@ -75,7 +83,7 @@ export class TaxController {
           inssRate: payload.inssRate,
           inssCeiling: payload.inssCeiling,
           dependentDeduction: payload.dependentDeduction,
-          irrfBrackets: payload.irrfBrackets,
+          irrfBrackets: payload.irrfBrackets as unknown as Prisma.InputJsonValue,
         },
       });
     }

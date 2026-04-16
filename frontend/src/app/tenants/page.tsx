@@ -1,9 +1,11 @@
 "use client";
 
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getDerivedTenantMetrics, useAppState, createTenant, updateTenant, addToast } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
+import { api } from '@/lib/api';
+import { useTenants } from '@/lib/use-api';
 
 type ModalType = 'global' | 'create' | null;
 
@@ -11,7 +13,21 @@ export default function Tenants() {
   const appState = useAppState();
   const metrics = getDerivedTenantMetrics(appState);
   const userRole = appState.role; // Puxamos o mock role p/ P0
-  const tenants = Object.values(appState.tenants).filter((t: any) => t.id !== 'corp');
+  const { data: apiTenants, error, refresh } = useTenants();
+  const tenants = appState.apiConnected
+    ? (apiTenants as Array<{ id: string; name: string; document: string }>).map((tenant) => ({
+        id: tenant.id,
+        label: tenant.name,
+        cnpj: tenant.document,
+        baseAtivos: 0,
+        repassesMes: 'R$ 0,00',
+        impostosMes: 'R$ 0,00',
+        pendencias: 'Nenhuma',
+        pendenciasCriticas: false,
+        usuarios: 0,
+        status: 'Sincronizado',
+      }))
+    : Object.values(appState.tenants).filter((t: { id: string }) => t.id !== 'corp');
   const [modalType, setModalType] = useState<ModalType>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({ nome: '', cnpj: '' });
@@ -21,6 +37,12 @@ export default function Tenants() {
     setModalType(null);
     setStep(1);
   });
+
+  useEffect(() => {
+    if (error) {
+      addToast(`Modo offline: ${error}`, 'info');
+    }
+  }, [error]);
 
   const showToast = (message: string) => {
     addToast(message, 'info');
@@ -35,12 +57,24 @@ export default function Tenants() {
     }
 
     const newId = formData.nome.toLowerCase().replace(/[^a-z0-9]/g, '');
-    createTenant(newId, formData.nome, formData.cnpj);
+    if (appState.apiConnected) {
+      void api
+        .createTenant({ name: formData.nome, document: formData.cnpj.replace(/\D/g, '') })
+        .then(async () => {
+          addToast('Instituição cadastrada com sucesso.', 'success');
+          await refresh();
+        })
+        .catch((err: unknown) => {
+          addToast(err instanceof Error ? err.message : 'Erro ao cadastrar tenant', 'error');
+        });
+    } else {
+      createTenant(newId, formData.nome, formData.cnpj);
+      addToast('Instituição cadastrada com sucesso.', 'success');
+    }
     
     setModalType(null);
     setFormData({ nome: '', cnpj: '' });
     setFormError('');
-    addToast('Instituição cadastrada com sucesso.', 'success');
   };
 
   return (
@@ -349,8 +383,20 @@ export default function Tenants() {
                       <button
                         onClick={() => {
                           setOpenMenu(null);
-                          updateTenant(tenant.id, { status: 'Atrasado' as any });
-                          addToast(`${tenant.label} inativada / suspensa com sucesso.`, 'success');
+                          if (appState.apiConnected) {
+                            void api
+                              .updateTenant(tenant.id, { name: tenant.label })
+                              .then(async () => {
+                                addToast(`${tenant.label} atualizada com sucesso.`, 'success');
+                                await refresh();
+                              })
+                              .catch((err: unknown) => {
+                                addToast(err instanceof Error ? err.message : 'Erro ao atualizar tenant', 'error');
+                              });
+                          } else {
+                            updateTenant(tenant.id, { status: 'Atrasado' as never });
+                            addToast(`${tenant.label} inativada / suspensa com sucesso.`, 'success');
+                          }
                         }}
                         style={{ width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--danger)' }}
                       >

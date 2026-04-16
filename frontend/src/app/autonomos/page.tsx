@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppState, addToast } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
+import { api } from '@/lib/api';
+import { useProfessionals } from '@/lib/use-api';
 
 // Tipos base para o payload e state
 type ProfessionalStatus = 'ACTIVE' | 'INACTIVE';
@@ -18,12 +20,6 @@ type ProfessionalListType = {
 export default function Autonomos() {
   const appState = useAppState();
   
-  // States de Dados
-  const [data, setData] = useState<ProfessionalListType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-
   // States de Filtro
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -45,100 +41,56 @@ export default function Autonomos() {
   
   useEscapeToClose(Boolean(modalType), () => setModalType(null));
 
-  // Mapa de Tenants para ID Real (Simplificação temporária até termos endpoint de Tenants no Front)
-  const tenantMap: Record<string, string> = {
-    'ufrj': 'UFRJ_ID_FAKE_SEED', // Vamos ignorar mapeamento rigoroso aqui pro demo, e enviar o Role adequado
-    'coppetec': 'COPPETEC_ID_FAKE'
-  };
-
   const currentRole = appState.role === 'admin' ? 'CORP_ADMIN' 
                       : appState.role === 'auditoria' ? 'AUDITOR' 
                       : 'UNIT_OPERATOR';
 
-  const fetchAutonomos = useCallback(async () => {
-    setLoading(true);
-    try {
-      const url = new URL('http://localhost:3001/professionals');
-      url.searchParams.set('page', String(page));
-      url.searchParams.set('limit', '8');
-      if (search) url.searchParams.set('search', search);
-      if (statusFilter) url.searchParams.set('status', statusFilter);
+  const { data: professionalResult, loading, error, refresh } = useProfessionals({
+    page,
+    limit: 8,
+    search,
+    status: statusFilter,
+  });
 
-      const res = await fetch(url.toString(), {
-        headers: {
-          'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID',
-          'x-user-role': currentRole
-        }
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        setData(json.data);
-        setTotalPages(json.meta.lastPage);
-        setTotalItems(json.meta.total);
-      } else {
-        addToast('Erro ao carregar profissionais', 'error');
-      }
-    } catch (e) {
-      console.error(e);
-      addToast('Erro de comunicação com backend', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, statusFilter, appState.activeTenant, currentRole]);
+  const data = (professionalResult.data as ProfessionalListType[]) ?? [];
+  const totalPages = professionalResult.meta?.lastPage ?? 1;
+  const totalItems = professionalResult.meta?.total ?? 0;
 
   useEffect(() => {
-    // Debounce na busca
-    const timeout = setTimeout(() => {
-      fetchAutonomos();
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [fetchAutonomos]);
+    if (error) {
+      addToast(`Modo offline: ${error}`, 'info');
+    }
+  }, [error]);
 
   const handleAction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (modalType === 'CREATE') {
       try {
-        const res = await fetch('http://localhost:3001/professionals', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-tenant-id': 'UFRJ_ID', // Hardcoded seed param
-            'x-user-role': currentRole
-          },
-          body: JSON.stringify(formData)
+        await api.createProfessional({
+          ...formData,
+          tenantId: appState.activeTenantId || undefined,
         });
-        if (res.ok) {
-          addToast('Profissional cadastrado!', 'success');
-          fetchAutonomos();
-          setModalType(null);
-        } else {
-          addToast(await res.text(), 'error');
-        }
-      } catch (e) {}
+        addToast('Profissional cadastrado!', 'success');
+        await refresh();
+        setModalType(null);
+      } catch (e: unknown) {
+        addToast(e instanceof Error ? e.message : 'Erro ao cadastrar profissional', 'error');
+      }
     } else if (modalType === 'DEACTIVATE' || modalType === 'REACTIVATE') {
       try {
         const status = modalType === 'DEACTIVATE' ? 'INACTIVE' : 'ACTIVE';
-        const res = await fetch(`http://localhost:3001/professionals/${targetId}/status`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-tenant-id': 'UFRJ_ID',
-            'x-user-role': currentRole,
-            'x-user-id': 'USER_ID'
-          },
-          body: JSON.stringify({ status, reason })
-        });
-        if (res.ok) {
-          addToast(`Status alterado para ${status}`, 'success');
-          fetchAutonomos();
-          setModalType(null);
-          setReason('');
-        } else {
-          const err = await res.json();
-          addToast(err.message, 'error');
+        if (!targetId) {
+          addToast('Registro inválido para atualização de status', 'error');
+          return;
         }
-      } catch (e) {}
+        await api.updateProfessionalStatus(targetId, status, reason);
+        addToast(`Status alterado para ${status}`, 'success');
+        await refresh();
+        setModalType(null);
+        setReason('');
+      } catch (e: unknown) {
+        addToast(e instanceof Error ? e.message : 'Erro ao alterar status', 'error');
+      }
     }
   };
 

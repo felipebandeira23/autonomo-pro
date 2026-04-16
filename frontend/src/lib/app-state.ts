@@ -33,6 +33,9 @@ type AppState = {
   paymentRecords: PaymentRecord[];
   auditLogs: AuditLog[];
   activeTenant: string;
+  activeTenantId: string;
+  userId: string;
+  apiConnected: boolean;
   isLoggedIn: boolean;
   /** YYYY-MM — referência ativa no dashboard */
   dashboardReferencia: string;
@@ -48,6 +51,9 @@ const defaultState: AppState = {
   paymentRecords: paymentRecords,
   auditLogs: [],
   activeTenant: 'corp',
+  activeTenantId: '',
+  userId: '',
+  apiConnected: false,
   isLoggedIn: false,
   dashboardReferencia: '2026-02',
 };
@@ -55,6 +61,15 @@ const defaultState: AppState = {
 let state: AppState = defaultState;
 const listeners = new Set<() => void>();
 let hydrated = false;
+let fallbackIdCounter = 0;
+
+function createClientId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  fallbackIdCounter += 1;
+  return `${Date.now()}-${fallbackIdCounter}`;
+}
 
 function notify() {
   listeners.forEach((listener) => listener());
@@ -164,7 +179,22 @@ export function setRole(role: UserRole) {
 }
 
 export function setActiveTenant(tenant: string) {
-  state = { ...state, activeTenant: tenant };
+  state = { ...state, activeTenant: tenant, activeTenantId: '' };
+  persistState();
+  notify();
+}
+
+export function setApiConnection(
+  connected: boolean,
+  tenantId?: string,
+  userId?: string,
+) {
+  state = {
+    ...state,
+    apiConnected: connected,
+    activeTenantId: tenantId ?? state.activeTenantId,
+    userId: userId ?? state.userId,
+  };
   persistState();
   notify();
 }
@@ -177,7 +207,7 @@ export function setLoggedIn(status: boolean) {
 
 export function addAuditLog(targetId: string, action: string, details: string) {
   const log: AuditLog = {
-    id: Math.random().toString(36).substring(2, 9),
+    id: createClientId(),
     timestamp: new Date().toISOString(),
     targetId,
     action,
@@ -263,7 +293,7 @@ export function updateTenant(tenantId: string, updates: Partial<typeof tenantSum
 }
 
 export function addToast(message: string, type: ToastMessage['type'] = 'info') {
-  const id = Math.random().toString(36).substring(2, 9);
+  const id = createClientId();
   state = {
     ...state,
     toasts: [...state.toasts, { id, message, type }],

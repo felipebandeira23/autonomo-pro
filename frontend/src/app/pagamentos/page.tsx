@@ -1,11 +1,13 @@
 "use client";
 
 import Link from 'next/link';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getEffectivePayments, useAppState } from '@/lib/app-state';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { getPaymentStatusMeta } from '@/lib/mock-data';
 import { addToast } from '@/lib/app-state';
+import { usePayments } from '@/lib/use-api';
+import { mapTenantIdToViewKey } from '@/lib/tenant-utils';
 
 const tabs = [
   { id: 'todos', label: 'Todos Lançamentos' },
@@ -16,7 +18,54 @@ const tabs = [
 
 export default function Pagamentos() {
   const appState = useAppState();
-  const effectivePayments = getEffectivePayments(appState, true);
+  const fallbackPayments = getEffectivePayments(appState, true);
+  const { data: paymentsResult, error } = usePayments({ page: 1, limit: 100 });
+  const effectivePayments = appState.apiConnected
+    ? (paymentsResult.data as Array<{
+        id: string;
+        code: string;
+        competence: string;
+        paymentDate: string;
+        grossValue: number;
+        inssValue: number;
+        irrfValue: number;
+        netValue: number;
+        status: 'DRAFT' | 'PENDING_APPROVAL' | 'PAID' | 'REJECTED';
+        tenantId: string;
+        professional?: { name?: string; document?: string };
+        convenio?: string;
+      }>).map((payment) => {
+        const statusMap: Record<string, 'elaboracao' | 'aprovacao' | 'pago' | 'rejeitado'> = {
+          DRAFT: 'elaboracao',
+          PENDING_APPROVAL: 'aprovacao',
+          PAID: 'pago',
+          REJECTED: 'rejeitado',
+        };
+        const toCurrency = (value: number) =>
+          new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
+
+        return {
+          id: payment.code.replace('RPA-', ''),
+          ident: `#${payment.code}`,
+          nome: payment.professional?.name || 'Profissional',
+          cpf: payment.professional?.document || '***.***.***-**',
+          convenio: payment.convenio || 'N/D',
+          tenantId: mapTenantIdToViewKey(payment.tenantId),
+          bruto: toCurrency(payment.grossValue),
+          liquido: toCurrency(payment.netValue),
+          deducaoinss: Number(payment.inssValue || 0).toFixed(2).replace('.', ','),
+          deducoirrf: Number(payment.irrfValue || 0).toFixed(2).replace('.', ','),
+          descontos: toCurrency(Number(payment.inssValue || 0) + Number(payment.irrfValue || 0)),
+          statusId: statusMap[payment.status] ?? 'elaboracao',
+          realid: payment.id,
+          data: String(payment.paymentDate).slice(0, 10),
+          referencia: (() => {
+            const [month, year] = payment.competence.split('/');
+            return `${year}-${month}`;
+          })(),
+        };
+      })
+    : fallbackPayments;
   const [tab, setTab] = useState<(typeof tabs)[number]['id']>('todos');
   const [search, setSearch] = useState('');
   const [tenantFilter, setTenantFilter] = useState('todas');
@@ -24,6 +73,12 @@ export default function Pagamentos() {
   const [modalContent, setModalContent] = useState<string | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEscapeToClose(Boolean(modalContent), () => setModalContent(null));
+
+  useEffect(() => {
+    if (error && !appState.apiConnected) {
+      addToast(`Modo offline: ${error}`, 'info');
+    }
+  }, [error, appState.apiConnected]);
 
   const triggerSearchFeedback = () => {
     setIsSearching(true);

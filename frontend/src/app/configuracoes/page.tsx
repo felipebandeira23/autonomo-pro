@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { useAppState, addToast } from '@/lib/app-state';
+import { api } from '@/lib/api';
+import { useTaxConfig } from '@/lib/use-api';
 
 export default function Configuracoes() {
   const appState = useAppState();
@@ -12,6 +14,7 @@ export default function Configuracoes() {
   const [saveTarget, setSaveTarget] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(true);
+  const { data: taxConfig, error, refresh } = useTaxConfig(2026);
   
   const [configParams, setConfigParams] = useState({
     year: 2026,
@@ -29,29 +32,32 @@ export default function Configuracoes() {
   });
 
   useEffect(() => {
-    fetch('http://localhost:3001/tax/config?year=2026', {
-      headers: {
-        'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID'
-      }
-    })
-      .then(r => r.json())
-      .then(data => {
-        setConfigParams({
-          year: data.year,
-          inssRate: data.inssRate * 100, // stored as 0.11, display as 11
-          inssCeiling: data.inssCeiling,
-          dependentDeduction: data.dependentDeduction,
-          irrfBrackets: data.irrfBrackets
-        });
-        setBrackets(data.irrfBrackets);
-        setLoading(false);
-      })
-      .catch(e => {
-        console.error(e);
-        addToast('Erro ao carregar configurações do motor de imposto', 'error');
-        setLoading(false);
+    if (taxConfig) {
+      const data = taxConfig as {
+        year: number;
+        inssRate: number;
+        inssCeiling: number;
+        dependentDeduction: number;
+        irrfBrackets: unknown[];
+      };
+
+      setConfigParams({
+        year: data.year,
+        inssRate: data.inssRate * 100,
+        inssCeiling: data.inssCeiling,
+        dependentDeduction: data.dependentDeduction,
+        irrfBrackets: data.irrfBrackets as never[],
       });
-  }, [appState.activeTenant]);
+      setBrackets((data.irrfBrackets as Array<Record<string, unknown>>) ?? []);
+      setLoading(false);
+      return;
+    }
+
+    if (error) {
+      addToast(`Modo offline: ${error}`, 'info');
+      setLoading(false);
+    }
+  }, [taxConfig, error]);
 
   const handleSaveAll = async () => {
     if (role === 'auditoria') {
@@ -66,25 +72,12 @@ export default function Configuracoes() {
         irrfBrackets: brackets
       };
 
-      const res = await fetch('http://localhost:3001/tax/config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': appState.activeTenant === 'corp' ? '' : 'UFRJ_ID',
-          'x-user-role': role.toUpperCase()
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        addToast(`As configurações do motor de SSOT foram salvas com sucesso.`, 'success');
-        setSaveTarget(null);
-      } else {
-        const d = await res.json();
-        addToast('Erro ao salvar: ' + d.message, 'error');
-      }
-    } catch (e) {
-      addToast('Erro de comunicação.', 'error');
+      await api.updateTaxConfig(payload);
+      addToast(`As configurações do motor de SSOT foram salvas com sucesso.`, 'success');
+      setSaveTarget(null);
+      await refresh();
+    } catch (e: unknown) {
+      addToast(e instanceof Error ? `Erro ao salvar: ${e.message}` : 'Erro de comunicação.', 'error');
     }
   };
 
