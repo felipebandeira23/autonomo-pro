@@ -24,6 +24,7 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/autonomo_pro
       KC_DB_USERNAME: autonomo_admin
       KC_DB_PASSWORD: autonomo_password
+      KC_DB_SCHEMA: keycloak
     command: start-dev
     ports:
       - "8180:8080"

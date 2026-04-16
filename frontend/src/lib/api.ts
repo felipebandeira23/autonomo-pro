@@ -1,4 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const TOKEN_KEY = 'autonomo-pro.token';
+const APP_STATE_KEY = 'autonomo-pro.app-state';
 
 type FrontendRole = 'admin' | 'financeiro' | 'auditoria';
 
@@ -41,15 +43,20 @@ export async function apiFetch<T>(
 
   const storedState =
     typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('autonomo-pro.app-state') || '{}')
+      ? JSON.parse(localStorage.getItem(APP_STATE_KEY) || '{}')
       : {};
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-tenant-id': tenantId || storedState.activeTenantId || '',
-    'x-user-role': userRole || mapRole(storedState.role || 'admin'),
-    'x-user-id': userId || storedState.userId || '',
-  };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  } else {
+    headers['x-tenant-id'] = tenantId || storedState.activeTenantId || '';
+    headers['x-user-role'] = userRole || mapRole(storedState.role || 'admin');
+    headers['x-user-id'] = userId || storedState.userId || '';
+  }
 
   const res = await fetch(withApiPrefix(endpoint), {
     method,
@@ -58,6 +65,23 @@ export async function apiFetch<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem(TOKEN_KEY);
+      const appState = JSON.parse(localStorage.getItem(APP_STATE_KEY) || '{}');
+      localStorage.setItem(
+        APP_STATE_KEY,
+        JSON.stringify({
+          ...appState,
+          token: null,
+          userId: '',
+          activeTenantId: '',
+          isLoggedIn: false,
+          apiConnected: false,
+        }),
+      );
+      window.location.href = '/login';
+    }
+
     const err = await res
       .json()
       .catch(() => ({ message: res.statusText || `API Error ${res.status}` }));
@@ -72,6 +96,15 @@ export async function apiFetch<T>(
 }
 
 export const api = {
+  login: (email: string, password: string) =>
+    apiFetch<{ access_token: string }>('/auth/login', {
+      method: 'POST',
+      body: { email, password },
+    }),
+  me: () => apiFetch('/auth/me'),
+  register: (data: unknown) =>
+    apiFetch('/auth/register', { method: 'POST', body: data }),
+
   getProfessionals: (params?: {
     search?: string;
     status?: string;

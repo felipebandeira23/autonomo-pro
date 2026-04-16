@@ -35,6 +35,7 @@ type AppState = {
   activeTenant: string;
   activeTenantId: string;
   userId: string;
+  token: string | null;
   apiConnected: boolean;
   isLoggedIn: boolean;
   /** YYYY-MM — referência ativa no dashboard */
@@ -53,6 +54,7 @@ const defaultState: AppState = {
   activeTenant: 'corp',
   activeTenantId: '',
   userId: '',
+  token: null,
   apiConnected: false,
   isLoggedIn: false,
   dashboardReferencia: '2026-02',
@@ -86,9 +88,11 @@ function hydrateState() {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      const token = window.localStorage.getItem('autonomo-pro.token');
       state = {
         ...defaultState,
         ...parsed,
+        token: token ?? parsed.token ?? null,
         // Dados de código sempre têm prioridade sobre localStorage
         // para evitar crash com campos novos (ex: payment.data, referencia)
         paymentRecords: defaultState.paymentRecords,
@@ -203,6 +207,43 @@ export function setLoggedIn(status: boolean) {
   state = { ...state, isLoggedIn: status };
   persistState();
   notify();
+}
+
+export function setToken(token: string | null) {
+  state = { ...state, token };
+
+  if (typeof window !== 'undefined') {
+    if (token) {
+      window.localStorage.setItem('autonomo-pro.token', token);
+    } else {
+      window.localStorage.removeItem('autonomo-pro.token');
+    }
+  }
+
+  persistState();
+  notify();
+}
+
+export function logout() {
+  state = {
+    ...state,
+    token: null,
+    userId: '',
+    activeTenantId: '',
+    apiConnected: false,
+    isLoggedIn: false,
+  };
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem('autonomo-pro.token');
+  }
+
+  persistState();
+  notify();
+
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
 }
 
 export function addAuditLog(targetId: string, action: string, details: string) {

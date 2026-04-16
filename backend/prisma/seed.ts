@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import * as bcrypt from 'bcryptjs';
 dotenv.config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -9,6 +10,8 @@ const adapter = new PrismaPg(pool, { schema: 'autonomo' });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const defaultPassword = await bcrypt.hash('autonomo123', 10);
+
   const corp = await prisma.tenant.upsert({
     where: { document: '00000000000191' },
     update: {},
@@ -38,52 +41,55 @@ async function main() {
 
   const userAdmin = await prisma.user.upsert({
     where: { email: 'admin@corp.br' },
-    update: {},
+    update: { password: defaultPassword },
     create: {
       name: 'Super Admin',
       email: 'admin@corp.br',
+      password: defaultPassword,
       role: 'CORP_ADMIN',
       tenantId: null,
-    }
+    },
   });
 
   const userUfrj = await prisma.user.upsert({
     where: { email: 'financeiro@ufrj.br' },
-    update: {},
+    update: { password: defaultPassword },
     create: {
       name: 'Financeiro UFRJ',
       email: 'financeiro@ufrj.br',
+      password: defaultPassword,
       role: 'UNIT_OPERATOR',
       tenantId: ufrj.id,
-    }
+    },
   });
 
   const userAuditor = await prisma.user.upsert({
     where: { email: 'auditoria@gov.br' },
-    update: {},
+    update: { password: defaultPassword },
     create: {
       name: 'Auditor Externo',
       email: 'auditoria@gov.br',
+      password: defaultPassword,
       role: 'AUDITOR',
       tenantId: null,
-    }
+    },
   });
 
   const config = await prisma.taxConfig.create({
     data: {
       year: 2026,
       tenantId: ufrj.id,
-      inssRate: 0.1100,
+      inssRate: 0.11,
       inssCeiling: 932.32,
       dependentDeduction: 189.59,
       irrfBrackets: [
-        { min: 0, max: 2259.20, rate: 0, deduction: 0 },
+        { min: 0, max: 2259.2, rate: 0, deduction: 0 },
         { min: 2259.21, max: 2828.65, rate: 7.5, deduction: 169.44 },
         { min: 2828.66, max: 3751.05, rate: 15.0, deduction: 381.44 },
         { min: 3751.06, max: 4664.68, rate: 22.5, deduction: 662.77 },
-        { min: 4664.69, max: 9999999, rate: 27.5, deduction: 896.00 }
-      ]
-    }
+        { min: 4664.69, max: 9999999, rate: 27.5, deduction: 896.0 },
+      ],
+    },
   });
 
   const prof1 = await prisma.professional.upsert({
@@ -94,7 +100,7 @@ async function main() {
       document: '12345678901',
       numDependents: 1,
       tenantId: ufrj.id,
-    }
+    },
   });
 
   const prof2 = await prisma.professional.upsert({
@@ -105,7 +111,7 @@ async function main() {
       document: '98765432100',
       numDependents: 0,
       tenantId: ufrj.id,
-    }
+    },
   });
 
   await prisma.externalInssSource.create({
@@ -113,18 +119,18 @@ async function main() {
       professionalId: prof1.id,
       companyName: 'Empresa XYZ LTDA',
       cnpj: '12345678000199',
-      amount: 450.00,
-      competence: '02/2026'
-    }
+      amount: 450.0,
+      competence: '02/2026',
+    },
   });
 
   await prisma.legalDeduction.create({
     data: {
       professionalId: prof1.id,
       type: 'ALIMONY',
-      amount: 300.00,
-      description: 'Pensao alimenticia judicial'
-    }
+      amount: 300.0,
+      description: 'Pensao alimenticia judicial',
+    },
   });
 
   await prisma.professionalAuditLog.create({
@@ -133,12 +139,12 @@ async function main() {
       action: 'DEACTIVATE',
       reason: 'Solicitação de desligamento temporário - Processo 123/2026',
       performedById: userUfrj.id,
-    }
+    },
   });
 
   await prisma.professional.update({
     where: { id: prof2.id },
-    data: { status: 'INACTIVE' }
+    data: { status: 'INACTIVE' },
   });
 
   await prisma.payment.create({
@@ -155,7 +161,7 @@ async function main() {
       professionalId: prof1.id,
       tenantId: ufrj.id,
       taxConfigId: config.id,
-    }
+    },
   });
 
   await prisma.payment.create({
@@ -163,16 +169,16 @@ async function main() {
       code: 'RPA-1044',
       competence: '02/2026',
       paymentDate: new Date('2026-02-15T12:00:00Z'),
-      grossValue: 2500.00,
-      inssValue: 275.00,
-      irrfValue: 0.00,
-      netValue: 2225.00,
+      grossValue: 2500.0,
+      inssValue: 275.0,
+      irrfValue: 0.0,
+      netValue: 2225.0,
       status: 'DRAFT',
       convenio: 'Consultoria Acadêmica',
       professionalId: prof2.id,
       tenantId: ufrj.id,
       taxConfigId: config.id,
-    }
+    },
   });
 
   console.log('Seed do Prisma executado com sucesso: Tabelas Populosas!');
