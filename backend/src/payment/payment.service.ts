@@ -22,9 +22,7 @@ export class PaymentService {
   private async generateUniquePaymentCode(): Promise<string> {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const code = `RPA-${Math.floor(Math.random() * 90000) + 10000}`;
-      const existing = await this.prisma.payment.findUnique({
-        where: { code },
-      });
+      const existing = await this.prisma.payment.findUnique({ where: { code } });
       if (!existing) {
         return code;
       }

@@ -1,8 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
@@ -31,11 +27,7 @@ export class TenantsService {
     return this.prisma.tenant.findMany({ orderBy: { name: 'asc' } });
   }
 
-  async findOne(
-    id: string,
-    currentRole: UserRole,
-    currentTenantId: string | null,
-  ) {
+  async findOne(id: string, currentRole: UserRole, currentTenantId: string | null) {
     if (currentRole === 'UNIT_OPERATOR' && id !== currentTenantId) {
       throw new ForbiddenException('Acesso negado a este tenant.');
     }
@@ -47,17 +39,11 @@ export class TenantsService {
     return tenant;
   }
 
-  async getSummary(
-    id: string,
-    currentRole: UserRole,
-    currentTenantId: string | null,
-  ) {
+  async getSummary(id: string, currentRole: UserRole, currentTenantId: string | null) {
     await this.findOne(id, currentRole, currentTenantId);
 
     const [ativos, financial, porStatus] = await Promise.all([
-      this.prisma.professional.count({
-        where: { tenantId: id, status: 'ACTIVE' },
-      }),
+      this.prisma.professional.count({ where: { tenantId: id, status: 'ACTIVE' } }),
       this.prisma.payment.aggregate({
         where: { tenantId: id },
         _sum: { grossValue: true, inssValue: true, irrfValue: true },
@@ -73,20 +59,19 @@ export class TenantsService {
       tenantId: id,
       profissionaisAtivos: ativos,
       totalBruto: Number(financial._sum.grossValue ?? 0),
-      impostosRetidos:
-        Number(financial._sum.inssValue ?? 0) +
-        Number(financial._sum.irrfValue ?? 0),
-      pagamentosPorStatus: porStatus.reduce<Record<string, number>>(
-        (acc, item) => {
-          acc[item.status] = item._count.status;
-          return acc;
-        },
-        {},
-      ),
+      impostosRetidos: Number(financial._sum.inssValue ?? 0) + Number(financial._sum.irrfValue ?? 0),
+      pagamentosPorStatus: porStatus.reduce<Record<string, number>>((acc, item) => {
+        acc[item.status] = item._count.status;
+        return acc;
+      }, {}),
     };
   }
 
-  async update(id: string, currentRole: UserRole, data: UpdateTenantDto) {
+  async update(
+    id: string,
+    currentRole: UserRole,
+    data: UpdateTenantDto,
+  ) {
     if (currentRole !== 'CORP_ADMIN') {
       throw new ForbiddenException('Somente CORP_ADMIN pode atualizar tenant.');
     }

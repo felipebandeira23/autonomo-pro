@@ -30,11 +30,7 @@ export class PaymentController {
     @Headers('x-tenant-id') tenantId: string,
     @Headers('x-user-role') role: string,
   ) {
-    return this.paymentService.getAllPayments(
-      query,
-      tenantId ?? '',
-      role ?? '',
-    );
+    return this.paymentService.getAllPayments(query, tenantId ?? '', role ?? '');
   }
 
   @Patch(':id/submit')

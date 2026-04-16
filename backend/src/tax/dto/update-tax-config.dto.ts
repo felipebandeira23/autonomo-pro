@@ -1,11 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsNumber,
-  IsOptional,
-  Min,
-  ValidateNested,
-} from 'class-validator';
+import { IsArray, IsNumber, IsOptional, Min, ValidateNested } from 'class-validator';
 
 class TaxBracketDto {
   @Type(() => Number)

@@ -8,9 +8,7 @@ export class ListPaymentsQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\d{2}\/\d{4}$/, {
-    message: 'competence deve estar no formato MM/YYYY',
-  })
+  @Matches(/^\d{2}\/\d{4}$/, { message: 'competence deve estar no formato MM/YYYY' })
   competence?: string;
 
   @IsOptional()

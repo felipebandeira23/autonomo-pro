@@ -25,10 +25,7 @@ describe('PaymentService status transitions', () => {
 
   it('submitPayment should move DRAFT to PENDING_APPROVAL', async () => {
     prisma.payment.findUnique.mockResolvedValue({ id: 'p1', status: 'DRAFT' });
-    prisma.payment.update.mockResolvedValue({
-      id: 'p1',
-      status: 'PENDING_APPROVAL',
-    });
+    prisma.payment.update.mockResolvedValue({ id: 'p1', status: 'PENDING_APPROVAL' });
 
     const result = await service.submitPayment('p1');
 
@@ -44,8 +41,8 @@ describe('PaymentService status transitions', () => {
   it('rejectPayment should fail when current status is not PENDING_APPROVAL', async () => {
     prisma.payment.findUnique.mockResolvedValue({ id: 'p1', status: 'DRAFT' });
 
-    await expect(
-      service.rejectPayment('p1', 'motivo válido'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.rejectPayment('p1', 'motivo válido')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

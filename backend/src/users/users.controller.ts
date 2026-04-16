@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { UsersService } from './users.service';
@@ -29,16 +20,9 @@ export class UsersController {
   }
 
   @Get()
-  async findAll(
-    @Req() req: RequestWithUser,
-    @Query('tenantId') tenantId?: string,
-  ) {
+  async findAll(@Req() req: RequestWithUser, @Query('tenantId') tenantId?: string) {
     const role = req.user?.role ?? 'UNIT_OPERATOR';
-    return this.usersService.findAll(
-      role,
-      req.user?.tenantId ?? null,
-      tenantId,
-    );
+    return this.usersService.findAll(role, req.user?.tenantId ?? null, tenantId);
   }
 
   @Get(':id')

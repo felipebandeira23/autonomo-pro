@@ -8,8 +8,6 @@ export class UpdateTenantDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\d{14}$/, {
-    message: 'document deve conter 14 dígitos numéricos (CNPJ)',
-  })
+  @Matches(/^\d{14}$/, { message: 'document deve conter 14 dígitos numéricos (CNPJ)' })
   document?: string;
 }

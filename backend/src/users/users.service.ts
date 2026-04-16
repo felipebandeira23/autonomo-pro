@@ -1,8 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -12,11 +8,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    currentRole: UserRole,
-    currentTenantId: string | null,
-    data: CreateUserDto,
-  ) {
+  async create(currentRole: UserRole, currentTenantId: string | null, data: CreateUserDto) {
     if (currentRole === 'AUDITOR') {
       throw new ForbiddenException('AUDITOR não pode criar usuários.');
     }
@@ -28,14 +20,10 @@ export class UsersService {
         throw new ForbiddenException('Tenant inválido para operação.');
       }
       if (targetTenantId && targetTenantId !== currentTenantId) {
-        throw new ForbiddenException(
-          'UNIT_OPERATOR só pode criar usuário no próprio tenant.',
-        );
+        throw new ForbiddenException('UNIT_OPERATOR só pode criar usuário no próprio tenant.');
       }
       if (data.role === 'CORP_ADMIN') {
-        throw new ForbiddenException(
-          'UNIT_OPERATOR não pode criar CORP_ADMIN.',
-        );
+        throw new ForbiddenException('UNIT_OPERATOR não pode criar CORP_ADMIN.');
       }
       targetTenantId = currentTenantId;
     }
@@ -51,11 +39,7 @@ export class UsersService {
     });
   }
 
-  async findAll(
-    currentRole: UserRole,
-    currentTenantId: string | null,
-    tenantId?: string,
-  ) {
+  async findAll(currentRole: UserRole, currentTenantId: string | null, tenantId?: string) {
     if (currentRole === 'UNIT_OPERATOR') {
       return this.prisma.user.findMany({
         where: { tenantId: currentTenantId ?? undefined },
@@ -69,11 +53,7 @@ export class UsersService {
     });
   }
 
-  async findOne(
-    id: string,
-    currentRole: UserRole,
-    currentTenantId: string | null,
-  ) {
+  async findOne(id: string, currentRole: UserRole, currentTenantId: string | null) {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
@@ -97,14 +77,10 @@ export class UsersService {
 
     if (currentRole === 'UNIT_OPERATOR') {
       if (data.role === 'CORP_ADMIN' || data.role === 'AUDITOR') {
-        throw new ForbiddenException(
-          'UNIT_OPERATOR não pode elevar privilégios para esse perfil.',
-        );
+        throw new ForbiddenException('UNIT_OPERATOR não pode elevar privilégios para esse perfil.');
       }
       if (data.tenantId && data.tenantId !== currentTenantId) {
-        throw new ForbiddenException(
-          'UNIT_OPERATOR só pode atualizar usuário no próprio tenant.',
-        );
+        throw new ForbiddenException('UNIT_OPERATOR só pode atualizar usuário no próprio tenant.');
       }
     }
 
