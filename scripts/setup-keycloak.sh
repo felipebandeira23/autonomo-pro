@@ -5,6 +5,7 @@ KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:8180}"
 KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN_USER:-admin}"
 KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
 REALM="${KEYCLOAK_REALM:-autonomo-pro}"
+TEST_USER_PASSWORD="${KEYCLOAK_TEST_USER_PASSWORD:-autonomo123}"
 
 echo "Obtendo token administrativo..."
 ADMIN_TOKEN=$(
@@ -88,7 +89,7 @@ create_user() {
     -X POST "${KEYCLOAK_URL}/admin/realms/${REALM}/users" \
     -H "${AUTH_HEADER[0]}" \
     -H "Content-Type: application/json" \
-    -d "{\"username\":\"${email}\",\"email\":\"${email}\",\"firstName\":\"${name}\",\"enabled\":true,\"attributes\":{\"tenant_id\":[\"${tenant_id}\"]},\"credentials\":[{\"type\":\"password\",\"value\":\"autonomo123\",\"temporary\":false}]}" | grep -Eq "201|409"
+    -d "{\"username\":\"${email}\",\"email\":\"${email}\",\"firstName\":\"${name}\",\"enabled\":true,\"attributes\":{\"tenant_id\":[\"${tenant_id}\"]},\"credentials\":[{\"type\":\"password\",\"value\":\"${TEST_USER_PASSWORD}\",\"temporary\":false}]}" | grep -Eq "201|409"
 
   local user_id
   user_id=$(

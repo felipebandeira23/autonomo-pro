@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PUBLIC_AUTH_PATHS } from './auth.constants';
 
 type JwtRequestUser = {
   sub?: string;
@@ -69,7 +70,7 @@ export class TenantAccessGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const requestPath = request.path as string;
 
-    if (requestPath === '/auth/login' || requestPath === '/auth/login/') {
+    if (PUBLIC_AUTH_PATHS.has(requestPath)) {
       return true;
     }
 
@@ -107,8 +108,14 @@ export class TenantAccessGuard implements CanActivate {
     }
 
     if (tokenRole && tokenRole !== user.role) {
+      await this.auditAccess(
+        user.id,
+        requestedTenantId !== '' ? requestedTenantId : user.tenantId,
+        requestPath,
+        'BLOCKED_ROLE_MISMATCH',
+      );
       throw new ForbiddenException(
-        'Perfil do token divergente do perfil local.',
+        `Perfil do token divergente do perfil local: token=${tokenRole}, local=${user.role}.`,
       );
     }
 
@@ -117,7 +124,7 @@ export class TenantAccessGuard implements CanActivate {
       // Como CORP_ADMIN, eu logo e passo direto em qlqr endpoint.
       await this.auditAccess(
         user.id,
-        requestedTenantId || user.tenantId,
+        requestedTenantId !== '' ? requestedTenantId : user.tenantId,
         requestPath,
         'GLOBAL_ACCESS_OVERRIDE',
       );

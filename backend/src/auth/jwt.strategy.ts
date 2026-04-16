@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { passportJwtSecret } from 'jwks-rsa';
+import { getJwtSecret } from './auth.constants';
 
 type JwtPayload = {
   sub: string;
@@ -51,7 +52,8 @@ function isKeycloakToken(rawJwtToken: string): boolean {
     return false;
   }
 
-  return payload.iss.startsWith(`${keycloakBaseUrl}/realms/${keycloakRealm}`);
+  const expectedIssuer = `${keycloakBaseUrl}/realms/${keycloakRealm}`;
+  return payload.iss === expectedIssuer || payload.iss === `${expectedIssuer}/`;
 }
 
 @Injectable()
@@ -70,11 +72,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           return;
         }
 
-        done(
-          null,
-          process.env.JWT_SECRET ||
-            'autonomo-pro-dev-secret-change-in-production',
-        );
+        done(null, getJwtSecret());
       },
     });
   }

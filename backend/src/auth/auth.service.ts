@@ -15,6 +15,14 @@ type AuthenticatedUser = {
   role: UserRole;
 };
 
+function getSaltRounds(): number {
+  const parsed = Number(process.env.BCRYPT_SALT_ROUNDS || '10');
+  if (!Number.isFinite(parsed) || parsed < 10) {
+    return 10;
+  }
+  return Math.floor(parsed);
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -57,7 +65,7 @@ export class AuthService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, getSaltRounds());
 
     const createdUser = await this.prisma.user.create({
       data: {
