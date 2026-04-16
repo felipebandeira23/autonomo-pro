@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAppState, setLoggedIn, setActiveTenant, setRole, type UserRole } from '@/lib/app-state';
+import { setApiConnection, setLoggedIn, setActiveTenant, setRole } from '@/lib/app-state';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export default function LoginPage() {
       }
 
       setLoggedIn(true);
+      setApiConnection(false, '', '');
       router.push('/');
     }, 800);
   };
@@ -37,6 +38,7 @@ export default function LoginPage() {
       setRole('admin');
       setActiveTenant('corp');
       setLoggedIn(true);
+      setApiConnection(false, '', '');
       router.push('/');
     }, 1200);
   };

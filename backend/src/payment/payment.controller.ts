@@ -1,19 +1,51 @@
-import { Controller, Post, Get, Body, Param, Res } from '@nestjs/common';
-import { PaymentService } from './payment.service';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
+import { PaymentService } from './payment.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
+import { RejectPaymentDto } from './dto/reject-payment.dto';
 
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post()
-  async create(@Body() body: any) {
+  async create(@Body() body: CreatePaymentDto) {
     return this.paymentService.createPayment(body);
   }
 
   @Get()
-  async findAll() {
-    return this.paymentService.getAllPayments();
+  async findAll(
+    @Query() query: ListPaymentsQueryDto,
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-role') role: string,
+  ) {
+    return this.paymentService.getAllPayments(query, tenantId ?? '', role ?? '');
+  }
+
+  @Patch(':id/submit')
+  async submit(@Param('id') id: string) {
+    return this.paymentService.submitPayment(id);
+  }
+
+  @Patch(':id/approve')
+  async approve(@Param('id') id: string) {
+    return this.paymentService.approvePayment(id);
+  }
+
+  @Patch(':id/reject')
+  async reject(@Param('id') id: string, @Body() body: RejectPaymentDto) {
+    return this.paymentService.rejectPayment(id, body.reason);
   }
 
   @Get(':id/receipt')
@@ -28,8 +60,9 @@ export class PaymentController {
       });
 
       res.end(pdfBuffer);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro interno';
+      res.status(500).json({ error: message });
     }
   }
 }

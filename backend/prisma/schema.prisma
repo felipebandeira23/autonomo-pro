@@ -168,6 +168,7 @@ model Payment {
   netValue       Decimal  @db.Decimal(10, 2)
   status         PaymentStatus @default(DRAFT)
   convenio       String?
+  rejectionReason String?
 
   professionalId String
   professional   Professional @relation(fields: [professionalId], references: [id])
@@ -197,4 +198,3 @@ model TenantAuditLog {
   metadata       Json?    // Snapshot da ação ou diff
   createdAt      DateTime @default(now())
 }
-

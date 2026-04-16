@@ -11,6 +11,7 @@ export interface DashboardDto {
   totalGuiasPendentes: number;
   lancamentosEmAnalise: number;
   historicoRecente: HistoricoItem[];
+  alertasOperacionais: string[];
   syncStatus: 'ok' | 'atrasado' | 'erro';
   geradoEm: string;
 }
@@ -113,7 +114,7 @@ export class DashboardService {
 
     // ── Histórico Recente ─────────────────────────────────────
     const historicoRecente: HistoricoItem[] = payments
-      .slice(0, 10)
+      .slice(0, 5)
       .map((p) => ({
         id: p.id,
         code: p.code,
@@ -151,6 +152,17 @@ export class DashboardService {
         : 0;
 
     const syncStatus: 'ok' | 'atrasado' | 'erro' = 'ok';
+    const alertasOperacionais: string[] = [];
+    if (lancamentosEmAnalise > 0) {
+      alertasOperacionais.push(
+        `${lancamentosEmAnalise} lançamentos pendentes de aprovação.`,
+      );
+    }
+    if (totalGuiasPendentes > 0) {
+      alertasOperacionais.push(
+        `${totalGuiasPendentes} guias com pendência operacional.`,
+      );
+    }
 
     return {
       referencia,
@@ -161,6 +173,7 @@ export class DashboardService {
       totalGuiasPendentes,
       lancamentosEmAnalise,
       historicoRecente,
+      alertasOperacionais,
       syncStatus,
       geradoEm: new Date().toISOString(),
     };

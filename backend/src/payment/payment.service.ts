@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TaxService } from '../tax/tax.service';
 import { PdfService } from '../pdf/pdf.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 
 @Injectable()
 export class PaymentService {
@@ -11,20 +19,16 @@ export class PaymentService {
     private readonly pdfService: PdfService,
   ) {}
 
-  async createPayment(data: {
-    professionalId: string;
-    taxConfigId: string;
-    grossValue: number;
-    competence: string;
-    paymentDate: string;
-  }) {
+  async createPayment(data: CreatePaymentDto) {
     const prof = await this.prisma.professional.findUnique({
       where: { id: data.professionalId },
     });
-    if (!prof)
+
+    if (!prof) {
       throw new NotFoundException(
         'Autônomo não encontrado no cadastro base do Governo.',
       );
+    }
 
     const result = await this.taxService.calculate(
       data.grossValue,
@@ -32,7 +36,7 @@ export class PaymentService {
       prof.numDependents,
     );
 
-    const payment = await this.prisma.payment.create({
+    return this.prisma.payment.create({
       data: {
         code: `RPA-${Math.floor(Math.random() * 90000) + 10000}`,
         professionalId: data.professionalId,
@@ -46,15 +50,109 @@ export class PaymentService {
         netValue: result.netValue,
       },
     });
+  }
 
+  async getAllPayments(
+    query: ListPaymentsQueryDto,
+    tenantIdHeader: string,
+    roleHeader: string,
+  ) {
+    const role = roleHeader.toUpperCase();
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.competence) {
+      where.competence = query.competence;
+    }
+    if (query.search) {
+      where.OR = [
+        { code: { contains: query.search, mode: 'insensitive' } },
+        {
+          professional: {
+            name: { contains: query.search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    if (role === 'UNIT_OPERATOR') {
+      if (!tenantIdHeader) {
+        throw new ForbiddenException(
+          'Tenant obrigatório para perfil UNIT_OPERATOR.',
+        );
+      }
+      where.tenantId = tenantIdHeader;
+    } else if (query.tenantId) {
+      where.tenantId = query.tenantId;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        include: { professional: true, taxConfig: true },
+        orderBy: { paymentDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        lastPage: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  }
+
+  private async getPaymentOrThrow(id: string) {
+    const payment = await this.prisma.payment.findUnique({ where: { id } });
+    if (!payment) {
+      throw new NotFoundException('Pagamento inexistente no sistema.');
+    }
     return payment;
   }
 
-  async getAllPayments() {
-    return this.prisma.payment.findMany({
-      include: { professional: true, taxConfig: true },
-      orderBy: { paymentDate: 'desc' },
+  private async transitionStatus(
+    id: string,
+    from: PaymentStatus,
+    to: PaymentStatus,
+    rejectionReason?: string,
+  ) {
+    const payment = await this.getPaymentOrThrow(id);
+    if (payment.status !== from) {
+      throw new BadRequestException(
+        `Transição inválida: esperado ${from}, encontrado ${payment.status}.`,
+      );
+    }
+
+    return this.prisma.payment.update({
+      where: { id },
+      data: {
+        status: to,
+        rejectionReason: to === 'REJECTED' ? rejectionReason : null,
+      },
     });
+  }
+
+  async submitPayment(id: string) {
+    return this.transitionStatus(id, 'DRAFT', 'PENDING_APPROVAL');
+  }
+
+  async approvePayment(id: string) {
+    return this.transitionStatus(id, 'PENDING_APPROVAL', 'PAID');
+  }
+
+  async rejectPayment(id: string, reason: string) {
+    return this.transitionStatus(id, 'PENDING_APPROVAL', 'REJECTED', reason);
   }
 
   async generateReceipt(paymentId: string) {
@@ -63,10 +161,10 @@ export class PaymentService {
       include: { professional: true, tenant: true },
     });
 
-    if (!payment)
+    if (!payment) {
       throw new NotFoundException('Pagamento inexistente no sistema.');
+    }
 
-    // Design System do Recibo de Pagamento Autônomo com Identidade Corporativa
     const htmlContent = `
       <html>
         <body style="font-family: 'Inter', Helvetica, sans-serif; padding: 50px; color: #172b4d; background: #ffffff;">
@@ -80,13 +178,13 @@ export class PaymentService {
               <p style="margin: 0; color: #5e6c84; font-size: 14px;">CNPJ: ${payment.tenant.document}</p>
             </div>
           </div>
-          
+
           <div style="background: #f4f5f7; padding: 20px; border-radius: 8px; margin-bottom: 40px;">
             <p style="margin: 0 0 10px 0;"><strong>Favorecido:</strong> ${payment.professional.name}</p>
             <p style="margin: 0 0 10px 0;"><strong>CPF Base:</strong> ${payment.professional.document}</p>
             <p style="margin: 0;"><strong>Competência Fiscal:</strong> ${payment.competence}</p>
           </div>
-          
+
           <table style="width: 100%; border-collapse: collapse; margin-top: 30px; font-size: 15px;">
             <thead>
               <tr style="background: #091e42; color: white;">

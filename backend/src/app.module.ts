@@ -9,6 +9,8 @@ import { PdfModule } from './pdf/pdf.module';
 import { PaymentModule } from './payment/payment.module';
 import { ProfessionalsModule } from './professionals/professionals.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PaymentModule,
     ProfessionalsModule,
     DashboardModule,
+    TenantsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

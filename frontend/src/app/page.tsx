@@ -14,6 +14,7 @@ import {
 import { useEscapeToClose } from '@/lib/use-escape-to-close';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SkeletonCard, SkeletonRow } from '@/components/SkeletonCard';
+import { useDashboard } from '@/lib/use-api';
 
 // ───────────────────────────────────────────────────────────
 // Helpers
@@ -415,7 +416,84 @@ function DashboardContent() {
 
   useEscapeToClose(Boolean(modalContent), () => setModalContent(null));
 
-  const metrics = useMemo(() => getDashboardMetrics(appState, referencia), [appState, referencia]);
+  const localMetrics = useMemo(() => getDashboardMetrics(appState, referencia), [appState, referencia]);
+  const { data: dashboardData, error } = useDashboard(referencia);
+
+  useEffect(() => {
+    if (error) {
+      addAuditLog('dashboard', 'API_FALLBACK', `Dashboard em fallback: ${error}`);
+    }
+  }, [error]);
+
+  const metrics = useMemo(() => {
+    if (!appState.apiConnected || !dashboardData) {
+      return localMetrics;
+    }
+
+    const payload = dashboardData as {
+      referencia: string;
+      autonomosAtivos: number;
+      variacaoAutonomosMes: number;
+      valorBrutoRepassado: number;
+      impostosRetidos: number;
+      totalGuiasPendentes: number;
+      lancamentosEmAnalise: number;
+      historicoRecente: Array<{
+        id: string;
+        code: string;
+        profissional: string;
+        bruto: number;
+        inss: number;
+        irrf: number;
+        liquido: number;
+        status: string;
+        data: string;
+        tenantId: string;
+      }>;
+      geradoEm: string;
+      syncStatus: 'ok' | 'atrasado' | 'erro';
+    };
+
+    const formatCurrency = (value: number) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+    const statusMap: Record<string, 'elaboracao' | 'aprovacao' | 'pago' | 'rejeitado'> = {
+      DRAFT: 'elaboracao',
+      PENDING_APPROVAL: 'aprovacao',
+      PAID: 'pago',
+      REJECTED: 'rejeitado',
+    };
+
+    return {
+      referencia: payload.referencia,
+      autonomosAtivos: payload.autonomosAtivos,
+      variacaoAutonomosMes: payload.variacaoAutonomosMes,
+      valorBrutoRepassado: payload.valorBrutoRepassado,
+      valorBrutoRepassadoStr: formatCurrency(payload.valorBrutoRepassado),
+      impostosRetidos: payload.impostosRetidos,
+      impostosRetidosStr: formatCurrency(payload.impostosRetidos),
+      totalGuiasPendentes: payload.totalGuiasPendentes,
+      lancamentosEmAnalise: payload.lancamentosEmAnalise,
+      historicoRecente: payload.historicoRecente.map((item) => ({
+        id: item.code.replace('RPA-', ''),
+        ident: `#${item.code}`,
+        nome: item.profissional,
+        cpf: '***.***.***-**',
+        convenio: 'N/D',
+        tenantId: (item.tenantId.includes('coppetec') ? 'coppetec' : 'ufrj') as 'ufrj' | 'coppetec',
+        bruto: formatCurrency(item.bruto),
+        liquido: formatCurrency(item.liquido),
+        deducaoinss: Number(item.inss || 0).toFixed(2).replace('.', ','),
+        deducoirrf: Number(item.irrf || 0).toFixed(2).replace('.', ','),
+        descontos: formatCurrency((item.inss || 0) + (item.irrf || 0)),
+        statusId: statusMap[item.status] ?? 'elaboracao',
+        realid: item.id,
+        data: item.data,
+        referencia: payload.referencia,
+      })),
+      geradoEm: payload.geradoEm,
+      syncStatus: payload.syncStatus,
+    };
+  }, [appState.apiConnected, dashboardData, localMetrics]);
 
   // Fake loading ao trocar referência para evidenciar recarregamento
   const handleReferenciaChange = useCallback((newRef: string) => {

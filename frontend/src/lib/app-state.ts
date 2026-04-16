@@ -33,6 +33,9 @@ type AppState = {
   paymentRecords: PaymentRecord[];
   auditLogs: AuditLog[];
   activeTenant: string;
+  activeTenantId: string;
+  userId: string;
+  apiConnected: boolean;
   isLoggedIn: boolean;
   /** YYYY-MM — referência ativa no dashboard */
   dashboardReferencia: string;
@@ -48,6 +51,9 @@ const defaultState: AppState = {
   paymentRecords: paymentRecords,
   auditLogs: [],
   activeTenant: 'corp',
+  activeTenantId: '',
+  userId: '',
+  apiConnected: false,
   isLoggedIn: false,
   dashboardReferencia: '2026-02',
 };
@@ -164,7 +170,22 @@ export function setRole(role: UserRole) {
 }
 
 export function setActiveTenant(tenant: string) {
-  state = { ...state, activeTenant: tenant };
+  state = { ...state, activeTenant: tenant, activeTenantId: '' };
+  persistState();
+  notify();
+}
+
+export function setApiConnection(
+  connected: boolean,
+  tenantId?: string,
+  userId?: string,
+) {
+  state = {
+    ...state,
+    apiConnected: connected,
+    activeTenantId: tenantId ?? state.activeTenantId,
+    userId: userId ?? state.userId,
+  };
   persistState();
   notify();
 }
